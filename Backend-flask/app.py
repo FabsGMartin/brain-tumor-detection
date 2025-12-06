@@ -18,7 +18,7 @@ application = app
 
 # --- CONFIGURACIÓN ---
 MODEL_VERSION = "1.0.0"
-TARGET_SIZE = (265, 265)
+TARGET_SIZE = (256, 256)
 LABELS = ["Clase_0", "Clase_1"]
 DB_FILE = "hospital_data.db"
 
