@@ -105,23 +105,6 @@ def page_intro():
 
 def page_model():
     st.header("🧬 Deep learning model")
-
-    st.markdown("## Introduction to the clinical problem")
-    st.warning(
-        "Brain cancer, and in particular low-grade gliomas (LGG), "
-        "requires early diagnosis and careful monitoring. "
-        "Magnetic resonance imaging (MRI) allows us to visualize the tumor, "
-        "but manual delineation is slow and highly dependent on the specialist."
-    )
-
-    st.markdown("---")
-    st.markdown(
-        "In this demo you will see:\n"
-        "- Statistics of the patient cohort.\n"
-        "- Example positive and negative cases.\n"
-        "- How a deep learning model can predict whether an MRI contains a tumor."
-    )
-
     st.markdown(
         """
         In a real hospital workflow, such a model would typically act as a
@@ -708,5 +691,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
