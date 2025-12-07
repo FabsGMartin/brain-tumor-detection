@@ -7,10 +7,11 @@ import time
 from datetime import datetime
 from flask import Flask, request, jsonify, g
 from tensorflow.keras.models import load_model
-from tensorflow.keras.applications.resnet50 import preprocess_input
-from tensorflow.keras.preprocessing.image import img_to_array
 from PIL import Image
 import io
+import cv2
+import random
+import glob
 
 # Inicializamos la aplicación Flask
 app = Flask(__name__)
@@ -19,7 +20,8 @@ application = app
 # --- CONFIGURACIÓN ---
 MODEL_VERSION = "1.0.0"
 TARGET_SIZE = (256, 256)
-LABELS = ["Clase_0", "Clase_1"]
+IMAGES_FOLDER = '../Mini_base_datos'
+LABELS = ["No detectado (0)", "Detectado(1)"]
 DB_FILE = "hospital_data.db"
 
 # --- CARGA DEL MODELO (.keras) ---
@@ -74,14 +76,21 @@ def decode_base64_image(base64_string):
     image_bytes = base64.b64decode(image_data)
     return Image.open(io.BytesIO(image_bytes))
 
-def prepare_image(image, target):
-    if image.mode != "RGB":
-        image = image.convert("RGB")
-    image = image.resize(target)
-    image = img_to_array(image)
-    image = np.expand_dims(image, axis=0)
-    image = preprocess_input(image)
-    return image
+def prepare_image(image_path_or_bytes, target):
+    """Preprocesa la imagen igual que en entrenamiento: BGR, normalizado /255"""
+    if isinstance(image_path_or_bytes, str):
+        # Si es ruta de archivo
+        img = cv2.imread(image_path_or_bytes)
+    else:
+        # Si son bytes (de la request)
+        img_array = np.frombuffer(image_path_or_bytes, np.uint8)
+        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    
+    # BGR a RGB y normalizar (como en entrenamiento)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) / 255.0
+    img = cv2.resize(img, target)
+    img = np.expand_dims(img, axis=0)
+    return img
 
 # ==========================================
 # DEFINICIÓN DE ENDPOINTS
@@ -94,12 +103,17 @@ def home():
         "model_loaded": model is not None,
         "model_type": ".keras (Modern Format)",
         "endpoints": {
-            "predict": "POST /predict (Body: image)",
-            "history": "GET /history (Query: limit, class)",
-            "train": "POST /admin/train (Body: epochs, lr)",
-            "feedback": "PUT /feedback/<id> (Path + Body)"
+            "predict_post": "POST /predict (Body: image) - Enviar imagen para predicción",
+            "predict_get": "GET /predict/<id> - Obtener predicción por ID",
+            "predict_random": "GET /predict/random - Predicción con imagen aleatoria",
+            "predict_random_view": "GET /predict/random/view - Ver predicción en navegador",
+            "history": "GET /history (Query: limit, class) - Historial de predicciones",
+            "feedback": "PUT /feedback/<id> (Path + Body) - Corregir predicción",
+            "train": "POST /admin/train (Body: epochs, lr) - Simular entrenamiento"
         }
     })
+
+
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -114,7 +128,7 @@ def predict():
     if request.files.get("image"):
         image_file = request.files["image"]
         filename = image_file.filename
-        image_bytes = Image.open(io.BytesIO(image_file.read()))
+        image_bytes = image_file.read()  # Guardamos bytes directamente
     elif request.json and "image" in request.json:
         image_bytes = decode_base64_image(request.json["image"])
 
@@ -143,6 +157,120 @@ def predict():
         return jsonify(data)
 
     return jsonify({"error": "Falta imagen o modelo no cargado"}), 400
+
+
+@app.route("/predict/<int:prediction_id>", methods=["GET"])
+def get_prediction(prediction_id):
+    db = get_db()
+    cursor = db.execute("SELECT * FROM predictions WHERE id = ?", (prediction_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        return jsonify({"error": "Predicción no encontrada"}), 404
+    
+    return jsonify(dict(row))
+
+
+@app.route("/predict/random", methods=["GET"])
+def predict_random():
+    # 1. Listar imágenes .tif (excluyendo máscaras)
+    all_files = glob.glob(os.path.join(IMAGES_FOLDER, '*.tif'))
+    image_files = [f for f in all_files if '_mask' not in f]
+    
+    if not image_files:
+        return jsonify({"error": "No se encontraron imágenes en la carpeta"}), 404
+    
+    # 2. Elegir una aleatoria
+    selected_image = random.choice(image_files)
+    filename = os.path.basename(selected_image)
+    
+    # 3. Leer y procesar imagen
+    with open(selected_image, 'rb') as f:
+        image_bytes = f.read()
+    
+    processed_image = prepare_image(image_bytes, target=TARGET_SIZE)
+    
+    # 4. Predecir
+    preds = model.predict(processed_image)
+    pred_idx = np.argmax(preds, axis=1)[0]
+    prob = float(np.max(preds))
+    pred_label = LABELS[pred_idx]
+    
+    return jsonify({
+        "filename": filename,
+        "prediction": pred_label,
+        "confidence": f"{prob:.2%}"
+    })
+
+
+@app.route("/predict/random/view", methods=["GET"])
+def predict_random_view():
+    # 1. Listar imágenes .tif (excluyendo máscaras)
+    all_files = glob.glob(os.path.join(IMAGES_FOLDER, '*.tif'))
+    image_files = [f for f in all_files if '_mask' not in f]
+    
+    if not image_files:
+        return "<h1>Error: No se encontraron imágenes</h1>", 404
+    
+    # 2. Elegir una aleatoria
+    selected_image = random.choice(image_files)
+    filename = os.path.basename(selected_image)
+    
+    # 3. Leer y procesar imagen
+    with open(selected_image, 'rb') as f:
+        image_bytes = f.read()
+    
+    processed_image = prepare_image(image_bytes, target=TARGET_SIZE)
+    
+    # 4. Predecir
+    preds = model.predict(processed_image)
+    pred_idx = np.argmax(preds, axis=1)[0]
+    prob = float(np.max(preds))
+    pred_label = LABELS[pred_idx]
+    
+    # 5. Convertir imagen a base64
+    img = Image.open(io.BytesIO(image_bytes))
+    png_buffer = io.BytesIO()
+    img.save(png_buffer, format='PNG')
+    png_buffer.seek(0)
+    image_base64 = base64.b64encode(png_buffer.read()).decode('utf-8')
+    
+    # 6. Devolver HTML
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Brain Tumor Detection</title>
+        <style>
+            body {{ font-family: Arial; text-align: center; padding: 20px; background: #f0f0f0; }}
+            .container {{ background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: auto; }}
+            img {{ max-width: 400px; border: 2px solid #333; border-radius: 5px; }}
+            .prediction {{ font-size: 24px; margin: 20px 0; padding: 15px; border-radius: 5px; }}
+            .detectado {{ background: #ffcccc; color: #cc0000; }}
+            .no-detectado {{ background: #ccffcc; color: #006600; }}
+            .confidence {{ font-size: 18px; color: #666; }}
+            .filename {{ font-size: 14px; color: #999; }}
+            .refresh {{ margin-top: 20px; padding: 10px 30px; font-size: 16px; cursor: pointer; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1> Brain Tumor Detection</h1>
+            <img src="data:image/png;base64,{image_base64}" alt="MRI Scan">
+            <div class="prediction {'detectado' if pred_idx == 1 else 'no-detectado'}">
+                {pred_label}
+            </div>
+            <div class="confidence">Confianza: {prob:.2%}</div>
+            <div class="filename">Archivo: {filename}</div>
+            <button class="refresh" onclick="location.reload()">🔄 Nueva imagen</button>
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+
+
 
 @app.route("/history", methods=["GET"])
 def get_history():
