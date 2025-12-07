@@ -60,6 +60,14 @@ def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
 
 def page_intro():
     st.header("🧠 Brain tumor detection and segmentation")
+    
+    st.error(
+        "- Around 80% of people living with a brain tumor require neurorehabilitation.\n"
+        "- In Spain, more than 5,000 new brain tumor cases are diagnosed every year.\n"
+        "- Brain tumors account for approximately 2% of all cancers diagnosed in adults and 15% of those diagnosed in children.\n"
+        "- About 80% of patients will present cognitive dysfunction, and 78% will present motor dysfunction.\n"
+        "- Therapeutic exercise can reduce cancer-related mortality by up to 59%."
+    )
 
     if logo is not None:
         st.image(logo, width=120)
@@ -551,9 +559,78 @@ def page_media():
         """
     )
 
-    st.subheader("📅 Appointment simulation")
-    cita = st.date_input("Select a date for the follow-up visit", datetime.date.today())
-    st.success(f"Selected date: {cita.strftime('%d/%m/%Y')}")
+def page_contribute():
+    st.header("🤝 Contribute and support patients")
+
+    # Mensaje en verde
+    st.success("June 8, 2023 – International Brain Tumor Day\n\n")
+
+    st.markdown(
+        """
+        If you would like to support patients and research related to brain tumors
+        and cancer in general, you can contribute through the  
+        **Asociación Española Contra el Cáncer (AECC)**.
+        
+        The AECC is a non-profit organization that has been working for decades across
+        Spain to **reduce the impact of cancer on society**. Its activity is based on
+        three main pillars:
+        
+        - **Support for patients and families**: emotional, psychological and social care,
+          guidance on practical aspects (work, benefits, legal issues) and accompaniment
+          throughout the disease.
+        - **Prevention and health education**: awareness campaigns about risk factors,
+          promotion of healthy lifestyles and early detection programs.
+        - **Funding of research**: competitive grants to research groups in oncology to
+          improve diagnosis, treatment and survival.
+        """
+    )
+
+    st.markdown(
+        """
+        In practice, the AECC acts through a network of local offices, hospitals and
+        volunteer programs. They offer:
+        
+        - Free **psycho-oncological support** for patients and relatives.
+        - **Social workers** who help manage administrative procedures and resources.
+        - **Telephone and online helplines** to answer questions and provide guidance.
+        - Collaboration with hospitals and research centers to drive **clinical and
+          translational research**.
+        """
+    )
+
+    # 🗓️ Bloque de cita con la asociación dentro
+    st.subheader("📅 Follow-up appointment")
+
+    cita = st.date_input(
+        "Select a date for the follow-up visit",
+        datetime.date.today(),
+        key="contribute_date"
+    )
+
+    # Logo clicable de la AECC dentro del bloque de cita
+    aecc_logo_url = "https://www.aecc.es/sites/default/files/styles/ps_xl/public/logo-aecc.png"
+    st.markdown(
+        f"""
+        <a href="https://www.aecc.es/" target="_blank">
+            <img src="{aecc_logo_url}" alt="AECC" width="260">
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        By clicking on the logo, you will be redirected to the official website of the
+        Spanish Association Against Cancer, where you can:
+        - Request information and support for you or your family.
+        - Collaborate as a donor or volunteer.
+        - Learn more about prevention and early detection.
+        - Help fund cutting-edge cancer research projects.
+        """
+    )
+
+
+
 
 def page_team():
     st.header("👥 Project team")
@@ -578,60 +655,63 @@ def page_team():
         """
     )
 
+def page_team():
+    st.header("👥 Project team")
+
+    st.markdown(
+        """
+        This work has been developed by a multidisciplinary team of students
+        in Data Science and backend development.  
+        
+        Below you can see our profiles and GitHub links.
+        """
+    )
+
     team = [
         {
-            "name": "Nombre 1",
-            "role": "ML Engineer",
-            "github": "https://github.com/usuario1",
+            "name": "Luna Pérez",
+            "github": "https://github.com/LunaPerezT",
             "photo": "images/team/miembro1.jpg"
         },
         {
-            "name": "Nombre 2",
-            "role": "Backend Developer",
-            "github": "https://github.com/usuario2",
+            "name": "Raquel Hernández",
+            "github": "https://github.com/RaquelH18",
             "photo": "images/team/miembro2.jpg"
         },
         {
-            "name": "Nombre 3",
-            "role": "Data Scientist",
-            "github": "https://github.com/usuario3",
+            "name": "Marcos Marín",
+            "github": "https://github.com/mmarin3011-cloud",
             "photo": "images/team/miembro3.jpg"
         },
         {
-            "name": "Nombre 4",
-            "role": "MLOps & Cloud",
-            "github": "https://github.com/usuario4",
+            "name": "Fabián G. Martín",
+            "github": "https://github.com/FabsGMartin",
             "photo": "images/team/miembro4.jpg"
         },
         {
-            "name": "Nombre 5",
-            "role": "Frontend & UX",
-            "github": "https://github.com/usuario5",
+            "name": "Miguel J. de la Torre",
+            "github": "https://github.com/migueljdlt",
             "photo": "images/team/miembro5.jpg"
         },
         {
-            "name": "Nombre 6",
-            "role": "Data Engineer",
-            "github": "https://github.com/usuario6",
+            "name": "Alejandro C.",
+            "github": "https://github.com/alc98",
             "photo": "images/team/miembro6.jpg"
         },
     ]
 
+    # Grid de 2 filas x 3 columnas, con GitHub justo debajo del nombre
     for row_start in range(0, len(team), 3):
         cols = st.columns(3)
         for col, member in zip(cols, team[row_start:row_start + 3]):
             with col:
                 st.markdown("### " + member["name"])
+                st.markdown(f"**GitHub:** [{member['github']}]({member['github']})")
                 try:
                     img = Image.open(member["photo"])
-                    st.image(img, use_column_width=True, caption=member["role"])
+                    st.image(img, use_column_width=True, caption=member["name"])
                 except Exception:
                     st.info(f"Photo not found: `{member['photo']}`")
-
-                st.markdown(
-                    f"[🌐 GitHub]({member['github']})",
-                    unsafe_allow_html=True
-                )
 
     st.info(
         """
@@ -642,11 +722,6 @@ def page_team():
         """
     )
 
-def main():
-    st.title("Brain MRI Tumor – Demo Streamlit")
-
-    st.sidebar.header("Navigation")
-    st.sidebar.caption("Choose a section to explore the project.")
 
 def main():
     st.title("Brain MRI Tumor – Demo Streamlit")
@@ -654,13 +729,11 @@ def main():
     st.sidebar.header("Navigation")
     st.sidebar.caption("Choose a section to explore the project.")
 
-    st.markdown(
-        """
-        _Educational disclaimer_: this application is intended **only for learning and
-        experimentation in data science and medical imaging**. It must not be used to
-        make or support real diagnostic or therapeutic decisions for patients.
-        """
-    )
+def main():
+    st.title("Brain MRI Tumor – Demo Streamlit")
+
+    st.sidebar.header("Navigation")
+    st.sidebar.caption("Choose a section to explore the project.")
 
     menu = [
         "🏠 Introduction",
@@ -669,6 +742,7 @@ def main():
         "🖼️ Example cases",
         "🔍 Live prediction",
         "🎥 Media and appointment",
+        "🤝 Contribute",
         "👥 Team"
     ]
 
@@ -686,11 +760,27 @@ def main():
         page_live_prediction()
     elif choice == "🎥 Media and appointment":
         page_media()
+    elif choice == "🤝 Contribute":
+        page_contribute()
     elif choice == "👥 Team":
         page_team()
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
