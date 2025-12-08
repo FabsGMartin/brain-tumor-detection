@@ -762,34 +762,34 @@ def page_team():
 
     team = [
         {
-            "name": "Luna Pérez",
+            "name": "Luna Pérez T.",
             "github": "https://github.com/LunaPerezT",
-            "photo": "images/team/miembro1.jpg"
+            "linkedin": "https://www.linkedin.com/in/luna-p%C3%A9rez-troncoso-0ab21929b/"
         },
         {
             "name": "Raquel Hernández",
             "github": "https://github.com/RaquelH18",
-            "photo": "images/team/miembro2.jpg"
+            "linkedin":"https://www.linkedin.com/in/raquel-hern%C3%A1ndez-lozano/"
         },
         {
-            "name": "Marcos Marín",
+            "name": "Mary Marín",
             "github": "https://github.com/mmarin3011-cloud",
-            "photo": "images/team/miembro3.jpg"
+            "linkedin":"https://www.linkedin.com/in/mmarin30/"
         },
         {
             "name": "Fabián G. Martín",
             "github": "https://github.com/FabsGMartin",
-            "photo": "images/team/miembro4.jpg"
+            "linkedin":""
         },
         {
             "name": "Miguel J. de la Torre",
             "github": "https://github.com/migueljdlt",
-            "photo": "images/team/miembro5.jpg"
+            "linkedin":"https://www.linkedin.com/in/miguel-jimenez-7403a2374/"
         },
         {
             "name": "Alejandro C.",
             "github": "https://github.com/alc98",
-            "photo": "images/team/miembro6.jpg"
+            "linkedin":"https://www.linkedin.com/in/alejandro-c-9b6525292/"
         },
     ]
 
@@ -798,13 +798,23 @@ def page_team():
         cols = st.columns(3)
         for col, member in zip(cols, team[row_start:row_start + 3]):
             with col:
-                st.markdown("### " + member["name"])
-                st.markdown(f"**GitHub:** [{member['github']}]({member['github']})")
-                try:
-                    img = Image.open(member["photo"])
-                    st.image(img, use_column_width=True, caption=member["name"])
-                except Exception:
-                    st.info(f"Photo not found: `{member['photo']}`")
+                with st.container(border=True):
+                    st.markdown(f'<h5 style="text-align: center;color: black;"> <b>{member["name"]}</b></h5>',unsafe_allow_html=True)
+                    st.markdown(f'''
+                                <center>
+                                
+                                **GitHub:** [{member['github']}]({member['github']})
+                                
+                                </center>
+                                ''',unsafe_allow_html=True)
+                    st.markdown(f'''
+                                <center>
+
+                                **LinkedIn:** [{member['linkedin']}]({member['linkedin']})
+                                
+                                </center>
+                                ''',unsafe_allow_html=True)
+                    
 
     st.info(
         """
