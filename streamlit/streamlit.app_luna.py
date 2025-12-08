@@ -36,12 +36,26 @@ st.markdown(
     }
 
     </style>
+
+    <style>
+    /* Red highlight analysis box */
+    .red-box {
+        border-left: 6px solid #FF0000;
+        background-color: #F0F2F6;
+        color: black;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin: 8px 0;
+        font-size: 14.5px;
+    }
+
+    </style>
     """
   ,unsafe_allow_html=True)
 
 #-----------DATAFRAME AND MODEL LOADING-------------
 
-df_routes_label = pd.read_csv("../data/route_label.csv")
+df = pd.read_csv("../data/route_label.csv")
 df_tumors =  pd.read_csv("../data/segmentation_routes_labels.csv")
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
@@ -68,39 +82,55 @@ def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
     return np.array(mask_img)
 
 def page_home():
+    st.header("🏠 **Home**")
     st.markdown("")
     st.markdown(
         """
+        Welcome to the Brain MRI Tumor Detection webpage!    
+        This project focuses on the development of a deep learning system for **brain tumor segmentation and detection in MRI scans**, aiming to support medical research and improve early identification of low-grade gliomas.   
+                 
         The project combines:
         - **Medical and domain knowledge**, to formulate clinically relevant questions.
         - **AI engineering and AIOps**, to design, train and deploy robust models.
         - **Data engineering**, to process raw TIFF images into analysis-ready tensors.
         - **Frontend and UX design**, to create interfaces that fit real clinical workflows.
-        Effective AI in healthcare always requires this kind of cross-disciplinary collaboration.
+        Effective AI in healthcare always requires this kind of cross-disciplinary collaboration.   
+        
+        The website is organized into several sections to guide you through the project:
+        - 🏠 **Home** – Overview of the project  
+        - 📚 **Introduction** – Context and motivation  
+        - 📂 **Data Sources** – Description of the datasets used  
+        - 🧬 **Deep Learning Model** – Architecture, training, and methodology  
+        - 📊 **Data Visualization** – Exploratory and technical visual analyses  
+        - 🔍 **Live Prediction** – Real-time model inference on user-uploaded MRI images  
+        - 🎥 **Visual Demo** – Practical demonstration of the segmentation results  
+        - 🤝 **Collaboration** – Ways to contribute to the project or cancer research  
+        - 👥 **About the Authors** – Information about the project contributors
+
+        Thank you for visiting — your interest and participation help strengthen ongoing efforts in medical imaging and cancer research.
+
         """
     )
 
 
 def page_intro():
-    st.header("🧠 Brain tumor detection and segmentation")
-    
-    st.error(
-        "- Around 80% of people living with a brain tumor require neurorehabilitation.\n"
-        "- In Spain, more than 5,000 new brain tumor cases are diagnosed every year.\n"
-        "- Brain tumors account for approximately 2% of all cancers diagnosed in adults and 15% of those diagnosed in children.\n"
-        "- About 80% of patients will present cognitive dysfunction, and 78% will present motor dysfunction.\n"
-        "- Therapeutic exercise can reduce cancer-related mortality by up to 59%."
-    )
-
-    if logo is not None:
-        st.image(logo, width=120)
+    st.header("📚 **Introduction**")
+    st.markdown("Early detection of brain tumors plays a crucial role in improving patient outcomes. When identified at an early stage, tumors are often smaller, less aggressive, and more responsive to treatment, allowing clinicians to intervene before neurological damage becomes extensive. MRI-based diagnosis is especially valuable, as it provides detailed structural information without exposing patients to radiation. Advances in automated image analysis and deep learning now offer the possibility of supporting radiologists with faster, more consistent tumor identification. By accelerating the diagnostic process, reducing human error, and enabling timely intervention, early detection becomes a powerful tool in improving survival rates and enhancing quality of life for patients affected by brain tumors.")
+    st.markdown('''
+        <div class="red-box">
+                
+        - Around 80% of people living with a brain tumor require neurorehabilitation.
+        - In Spain, more than 5,000 new brain tumor cases are diagnosed every year.
+        - Brain tumors account for approximately 2% of all cancers diagnosed in adults and 15% of those diagnosed in children.
+        - About 80% of patients will present cognitive dysfunction, and 78% will present motor dysfunction.
+        - Therapeutic exercise can reduce cancer-related mortality by up to 59%.
+        
+        </div>
+    ''',unsafe_allow_html=True)
 
     st.markdown("## Introduction to the clinical problem")
     st.warning(
-        "Brain cancer, and in particular low-grade gliomas (LGG), "
-        "requires early diagnosis and careful monitoring. "
-        "Magnetic resonance imaging (MRI) allows us to visualize the tumor, "
-        "but manual delineation is slow and highly dependent on the specialist."
+        "Brain cancer, and in particular low-grade gliomas (LGG) requires early diagnosis and careful monitoring. Magnetic resonance imaging (MRI) allows us to visualize the tumor, but manual delineation is slow and highly dependent on the specialist."
     )
 
     st.markdown("---")
@@ -134,153 +164,11 @@ def page_intro():
         """
     )
 
-def page_model():
-    st.header("🧬 Deep learning model")
-    st.markdown(
-        """
-        In a real hospital workflow, such a model would typically act as a
-        **decision-support tool** or “second reader”. It can:
-        - Highlight suspicious regions that deserve closer inspection.
-        - Provide quantitative measurements (e.g. tumor volume).
-        - Help standardize reports across radiologists.
-        Final responsibility for diagnosis and treatment decisions always remains
-        with the clinical team.
-        """
-    )
-
-    st.markdown("## General architecture")
-    st.markdown(
-        """
-        Our medical AI system is based on a **deep learning model** that operates on
-        brain MRI slices.
-
-        At a high level, the pipeline is:
-
-        1. **Input**: MRI image (normalized and resized).
-        2. **Neural network** (e.g. U-Net or CNN):
-           - Extracts visual patterns (edges, textures, hyperintense regions...).
-           - Learns to distinguish between healthy tissue and tumor tissue.
-        3. **Output**:
-           - A **class prediction**: tumor / no tumor.
-           - Optionally, a **segmentation mask** highlighting tumor pixels.
-        """
-    )
-
-    st.markdown(
-        """
-        Although this demo focuses on 2D slices, many research systems work with:
-        - **3D convolutions**, which exploit volumetric context across slices.
-        - **Multi-sequence input** (T1, T1+contrast, T2, FLAIR) stacked as channels.
-        - **Multimodal fusion**, combining imaging with clinical variables
-          (age, performance status, molecular markers) or even genomics.
-        This richer input can improve performance for tasks such as grading or prognosis.
-        """
-    )
-
-    st.markdown("## Training (summary)")
-    st.markdown(
-        """
-        - **Data**: MRI dataset with tumor annotations.
-        - **Labels**:
-          - For classification: `0` = no tumor, `1` = tumor.
-          - For segmentation: masks where each pixel indicates tumor/no tumor.
-        - **Procedure**:
-          - Split into *train / validation / test*.
-          - Train for several epochs minimizing a loss function
-            (for example, *Binary Cross-Entropy* for classification or
-            *Dice loss* for segmentation).
-        - **Typical metrics**:
-          - Classification: accuracy, F1, sensitivity, specificity.
-          - Segmentation: Dice coefficient, IoU.
-        """
-    )
-
-    st.markdown("## Data preprocessing and quality control")
-    st.markdown(
-        """
-        Before training any medical imaging model, a robust preprocessing pipeline is essential:
-        - **Skull stripping** to remove non-brain tissue and reduce noise.
-        - **Intensity normalization** per scan to mitigate scanner- or protocol-related variability.
-        - **Spatial registration** to a common template when combining data from multiple patients.
-        - **Resampling to isotropic voxels** so that physical distances are comparable.
-        - **Data augmentation** (rotations, flips, elastic deformations, mild intensity shifts)
-          to improve generalization and simulate real-world acquisition variability.
-        A careful visual QC (quality control) step is usually performed with radiologists
-        to exclude corrupted or mislabeled scans.
-        """
-    )
-
-    st.markdown("## Evaluation and clinical interpretation")
-    st.markdown(
-        """
-        Beyond global metrics, clinicians and data scientists typically:
-        - Inspect **ROC and precision-recall curves** to select thresholds that balance
-          sensitivity (avoiding missed tumors) and specificity (avoiding unnecessary alarms).
-        - Use **calibration curves** to verify that predicted probabilities correspond
-          to actual risk, which is crucial when communicating risk to patients.
-        - Analyze **confusion matrices** stratified by subgroups (age, sex, scanner type,
-          tumor location) to detect potential bias.
-        - Compare performance with human experts in **reader studies** and investigate
-          cases where the model disagrees with the radiologist.
-        - Perform **external validation** on data from other hospitals to test
-          generalization beyond the training cohort.
-        """
-    )
-
-    st.markdown("## Integration with Flask")
-    st.info(
-        """
-        The model is deployed inside a **Flask API**:
-
-        - The Flask app exposes an HTTP endpoint (for example, `/predict`).
-        - Streamlit sends the MRI image to the endpoint in base64 format.
-        - Flask runs the deep learning model and returns:
-          - whether there is a tumor (`has_tumor`)
-          - the probability (`probability`)
-          - optionally, a mask (`mask_base64`).
-
-        This separation allows us to:
-        - Scale the model independently (GPU/CPU).
-        - Use Streamlit only as a lightweight visual interface.
-        """
-    )
-
-    st.markdown(
-        """
-        In a production setting, this architecture would be complemented with:
-        - **Authentication and audit logs** to track who requested each prediction.
-        - **Versioning** of models and training datasets to ensure reproducibility.
-        - **Monitoring** of latency, error rates and data drift to detect when
-          the model may need to be re-evaluated or retrained.
-        - Integration with hospital systems (PACS/RIS) using standards such as DICOM and HL7/FHIR.
-        """
-    )
-
-    st.markdown("## Limitations and responsible use")
-    st.warning(
-        """
-        This application is a **proof of concept** (PoC):
-
-        - It does not replace the judgment of a medical professional.
-        - Predictions may contain errors.
-        - Any real clinical use must undergo rigorous validation.
-        """
-    )
-
-    st.info(
-        """
-        Even models that perform well in retrospective studies can fail once deployed
-        if the patient population, scanners or imaging protocols change over time.
-        Continuous surveillance, periodic re-validation and collaboration between
-        data scientists, clinicians and MLOps engineers are essential for safe,
-        responsible AI in healthcare.
-        """
-    )
 
 
 def page_sources():
+    st.header("📂 **Data Sources**")
     st.markdown('''
-    ##### **Data Sources**
 
     The **LGG MRI Segmentation** dataset comes from the TCGA-LGG collection hosted on [*The Cancer Imaging Archive (TCIA)*](https://www.cancerimagingarchive.net/collection/tcga-lgg/) and was curated and released on [Kaggle by Mateusz Buda](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation/data). It contains MRI scans of patients diagnosed with **low-grade gliomas**, along with expert-annotated **tumor segmentation masks**.
     ''',unsafe_allow_html=True)
@@ -288,9 +176,23 @@ def page_sources():
     with col2:
         with st.container(border=True,):
             st.image("./img/kaggle.png",use_container_width=True)
+            st.markdown('''
+                        <center>
+
+                        Kaggle – [LGG MRI Segmentation Dataset](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation)
+
+                        </center>
+                        ''',unsafe_allow_html=True)
     with col4:
         with st.container(border=True):
             st.image("./img/TCIA.png",use_container_width=True)
+            st.markdown('''
+                        <center>
+
+                        TCIA – [TCGA-LGG Collection](https://www.cancerimagingarchive.net)
+                        
+                        </center>
+                        ''',unsafe_allow_html=True)
                    
     st.markdown('''
     ##### **Data Key Characteristics**
@@ -310,7 +212,7 @@ def page_sources():
 
                 
 
-def page_dataset():
+def page_data():
     st.header("📊 Database analysis")
 
     if df.empty:
@@ -494,6 +396,150 @@ def page_cases():
         """
     )
 
+def page_model():
+    st.header("🧬 Deep learning model")
+    st.markdown(
+        """
+        In a real hospital workflow, such a model would typically act as a
+        **decision-support tool** or “second reader”. It can:
+        - Highlight suspicious regions that deserve closer inspection.
+        - Provide quantitative measurements (e.g. tumor volume).
+        - Help standardize reports across radiologists.
+        Final responsibility for diagnosis and treatment decisions always remains
+        with the clinical team.
+        
+        """
+    )
+
+    st.markdown("## General architecture")
+    st.markdown(
+        """
+        Our medical AI system is based on a **deep learning model** that operates on
+        brain MRI slices.
+
+        At a high level, the pipeline is:
+
+        1. **Input**: MRI image (normalized and resized).
+        2. **Neural network** (e.g. U-Net or CNN):
+           - Extracts visual patterns (edges, textures, hyperintense regions...).
+           - Learns to distinguish between healthy tissue and tumor tissue.
+        3. **Output**:
+           - A **class prediction**: tumor / no tumor.
+           - Optionally, a **segmentation mask** highlighting tumor pixels.
+        """
+    )
+
+    st.markdown(
+        """
+        Although this demo focuses on 2D slices, many research systems work with:
+        - **3D convolutions**, which exploit volumetric context across slices.
+        - **Multi-sequence input** (T1, T1+contrast, T2, FLAIR) stacked as channels.
+        - **Multimodal fusion**, combining imaging with clinical variables
+          (age, performance status, molecular markers) or even genomics.
+        This richer input can improve performance for tasks such as grading or prognosis.
+        """
+    )
+
+    st.markdown("## Training (summary)")
+    st.markdown(
+        """
+        - **Data**: MRI dataset with tumor annotations.
+        - **Labels**:
+          - For classification: `0` = no tumor, `1` = tumor.
+          - For segmentation: masks where each pixel indicates tumor/no tumor.
+        - **Procedure**:
+          - Split into *train / validation / test*.
+          - Train for several epochs minimizing a loss function
+            (for example, *Binary Cross-Entropy* for classification or
+            *Dice loss* for segmentation).
+        - **Typical metrics**:
+          - Classification: accuracy, F1, sensitivity, specificity.
+          - Segmentation: Dice coefficient, IoU.
+        """
+    )
+
+    st.markdown("## Data preprocessing and quality control")
+    st.markdown(
+        """
+        Before training any medical imaging model, a robust preprocessing pipeline is essential:
+        - **Skull stripping** to remove non-brain tissue and reduce noise.
+        - **Intensity normalization** per scan to mitigate scanner- or protocol-related variability.
+        - **Spatial registration** to a common template when combining data from multiple patients.
+        - **Resampling to isotropic voxels** so that physical distances are comparable.
+        - **Data augmentation** (rotations, flips, elastic deformations, mild intensity shifts)
+          to improve generalization and simulate real-world acquisition variability.
+        A careful visual QC (quality control) step is usually performed with radiologists
+        to exclude corrupted or mislabeled scans.
+        """
+    )
+
+    st.markdown("## Evaluation and clinical interpretation")
+    st.markdown(
+        """
+        Beyond global metrics, clinicians and data scientists typically:
+        - Inspect **ROC and precision-recall curves** to select thresholds that balance
+          sensitivity (avoiding missed tumors) and specificity (avoiding unnecessary alarms).
+        - Use **calibration curves** to verify that predicted probabilities correspond
+          to actual risk, which is crucial when communicating risk to patients.
+        - Analyze **confusion matrices** stratified by subgroups (age, sex, scanner type,
+          tumor location) to detect potential bias.
+        - Compare performance with human experts in **reader studies** and investigate
+          cases where the model disagrees with the radiologist.
+        - Perform **external validation** on data from other hospitals to test
+          generalization beyond the training cohort.
+        """
+    )
+
+    st.markdown("## Integration with Flask")
+    st.info(
+        """
+        The model is deployed inside a **Flask API**:
+
+        - The Flask app exposes an HTTP endpoint (for example, `/predict`).
+        - Streamlit sends the MRI image to the endpoint in base64 format.
+        - Flask runs the deep learning model and returns:
+          - whether there is a tumor (`has_tumor`)
+          - the probability (`probability`)
+          - optionally, a mask (`mask_base64`).
+
+        This separation allows us to:
+        - Scale the model independently (GPU/CPU).
+        - Use Streamlit only as a lightweight visual interface.
+        """
+    )
+
+    st.markdown(
+        """
+        In a production setting, this architecture would be complemented with:
+        - **Authentication and audit logs** to track who requested each prediction.
+        - **Versioning** of models and training datasets to ensure reproducibility.
+        - **Monitoring** of latency, error rates and data drift to detect when
+          the model may need to be re-evaluated or retrained.
+        - Integration with hospital systems (PACS/RIS) using standards such as DICOM and HL7/FHIR.
+        """
+    )
+
+    st.markdown("## Limitations and responsible use")
+    st.warning(
+        """
+        This application is a **proof of concept** (PoC):
+
+        - It does not replace the judgment of a medical professional.
+        - Predictions may contain errors.
+        - Any real clinical use must undergo rigorous validation.
+        """
+    )
+
+    st.info(
+        """
+        Even models that perform well in retrospective studies can fail once deployed
+        if the patient population, scanners or imaging protocols change over time.
+        Continuous surveillance, periodic re-validation and collaboration between
+        data scientists, clinicians and MLOps engineers are essential for safe,
+        responsible AI in healthcare.
+        """
+    )
+
 def page_live_prediction():
     st.header("🔍 Live prediction with Flask model")
 
@@ -594,7 +640,7 @@ def page_live_prediction():
                 )
 
 def page_media():
-    st.header("🎥 Visual demo and appointment")
+    st.header("🎥 Visual demo")
     
     st.subheader("Demo video of the app / model")
     try:
@@ -622,19 +668,67 @@ def page_collab():
 Collaboration is central to the success and scientific value of this brain tumor segmentation project. Our work builds directly on the collective efforts of the research community and the open-access initiatives that make high-quality medical imaging data available for machine learning research.
 
 We acknowledge and thank the contributors of the **LGG MRI Segmentation** dataset, derived from the TCGA-LGG collection on *The Cancer Imaging Archive (TCIA)* and curated by Mateusz Buda. Their commitment to transparent data sharing enables researchers worldwide to develop, benchmark, and validate deep learning models for low-grade glioma segmentation. You can learn more about the dataset or contribute to their ongoing initiatives through the following links:
-
-- TCIA – TCGA-LGG Collection: https://www.cancerimagingarchive.net 
-- Kaggle – LGG MRI Segmentation Dataset: https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation
-
-We also actively encourage collaboration within our own project. Our repository is publicly available, and we invite contributions related to model development, preprocessing pipelines, evaluation metrics, or exploratory radiogenomic analysis. Whether you are a researcher, clinician, or data scientist, your expertise can help improve the robustness and clinical relevance of our neural network models.
-
-- GitHub Repository (Brain Tumor Detection Project):  
-  https://github.com/FabsGMartin/brain-tumor-detection
-
-We welcome pull requests, issue reporting, dataset discussions, and architectural improvements. In the spirit of open science, our goal is to create a collaborative space where insights and methods can be shared, replicated, and expanded. Through joint effort with both external data providers and the broader scientific community, we aim to produce reliable and reproducible tools that support research and clinical innovation in brain tumor analysis.
-
-
 ''')
+    col1, col2, col3,col4,col5 = st.columns([2,5,2,5,2],gap="large",vertical_alignment="center")
+    with col2:
+        with st.container(border=True,):
+            st.image("./img/kaggle.png",use_container_width=True)
+            st.markdown('''
+                        <center>
+
+                        Kaggle – [LGG MRI Segmentation Dataset](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation)
+
+                        </center>
+                        ''',unsafe_allow_html=True)
+    with col4:
+        with st.container(border=True):
+            st.image("./img/TCIA.png",use_container_width=True)
+            st.markdown('''
+                        <center>
+
+                        TCIA – [TCGA-LGG Collection](https://www.cancerimagingarchive.net)
+                        
+                        </center>
+                        ''',unsafe_allow_html=True)
+
+
+    st.markdown('''We also actively encourage collaboration within our own project. Our repository is publicly available, and we invite contributions related to model development, preprocessing pipelines, evaluation metrics, or exploratory radiogenomic analysis. Whether you are a researcher, clinician, or data scientist, your expertise can help improve the robustness and clinical relevance of our neural network models.''')
+
+    col1, col2, col3,col4,col5 = st.columns([2,2,5,2,2],gap="large",vertical_alignment="center")
+    with col3:
+        with st.container(border=True):
+            st.image("./img/github.png")
+            st.markdown(''' 
+                        <center>  
+                        
+                        GitHub Repository [Brain Tumor Detection Project](https://github.com/FabsGMartin/brain-tumor-detection)
+                    
+                        </center>
+                        ''',unsafe_allow_html=True)
+    st.markdown('''
+We welcome pull requests, issue reporting, dataset discussions, and architectural improvements. In the spirit of open science, our goal is to create a collaborative space where insights and methods can be shared, replicated, and expanded. Through joint effort with both external data providers and the broader scientific community, we aim to produce reliable and reproducible tools that support research and clinical innovation in brain tumor analysis.
+''')
+
+    st.markdown('''##### Support Cancer Research
+
+    Beyond contributing to this project, you can also support the broader fight against cancer. Advancing treatments, improving diagnostics, and understanding tumor biology all depend on continued scientific and clinical research. Many organizations work tirelessly to fund studies, support patients, and accelerate the development of life-saving therapies.
+
+    Here are several well-regarded associations you can collaborate with or donate to:
+
+    - **American Cancer Society (ACS):** https://www.cancer.org  
+    - **Brain Tumor Foundation:** https://www.braintumorfoundation.org  
+    - **National Brain Tumor Society (NBTS):** https://braintumor.org  
+    - **Cancer Research UK:** https://www.cancerresearchuk.org  
+    - **European Organisation for Research and Treatment of Cancer (EORTC):** https://www.eortc.org  
+
+    Your support—whether through scientific collaboration, sharing expertise, or contributing to research foundations—helps move the field forward and brings us closer to better outcomes for patients around the world.
+    ''',unsafe_allow_html=True)
+
+
+
+
+
+
 
 
 def page_team():
@@ -721,11 +815,10 @@ menu = [
         "🏠 Home",
         "📚 Introduction",
         "📂 Data Sources",
-        "🧬 Deep learning model",
         "📊 Data Visualization",
-        "🖼️ Example cases",
+        "🧬 Deep learning model",
         "🔍 Live prediction",
-        "🎥 Media and appointment",
+        "🎥 Visual demo",
         "🤝 Collaboration",
         "👥 About the Authors"
     ]
@@ -740,15 +833,13 @@ elif choice == "📚 Introduction":
     page_intro()
 elif choice ==  "📂 Data Sources":  
     page_sources()
+elif choice == "📊 Data Visualization":
+    page_data()
 elif choice == "🧬 Deep learning model":
     page_model()
-elif choice == "📊 Data Visualization":
-    page_dataset()
-elif choice == "🖼️ Example cases":
-    page_cases()
 elif choice == "🔍 Live prediction":
     page_live_prediction()
-elif choice == "🎥 Media and appointment":
+elif choice == "🎥 Visual demo":
     page_media()
 elif choice =="🤝 Collaboration":
     page_collab()
