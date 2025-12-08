@@ -69,6 +69,17 @@ def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
 
 def page_home():
     st.markdown("")
+    st.markdown(
+        """
+        The project combines:
+        - **Medical and domain knowledge**, to formulate clinically relevant questions.
+        - **AI engineering and AIOps**, to design, train and deploy robust models.
+        - **Data engineering**, to process raw TIFF images into analysis-ready tensors.
+        - **Frontend and UX design**, to create interfaces that fit real clinical workflows.
+        Effective AI in healthcare always requires this kind of cross-disciplinary collaboration.
+        """
+    )
+
 
 def page_intro():
     st.header("🧠 Brain tumor detection and segmentation")
@@ -600,6 +611,27 @@ def page_media():
         """
     )
 
+def page_collab():
+    st.header("🤝 Collaboration")
+    st.markdown('''
+
+Collaboration is central to the success and scientific value of this brain tumor segmentation project. Our work builds directly on the collective efforts of the research community and the open-access initiatives that make high-quality medical imaging data available for machine learning research.
+
+We acknowledge and thank the contributors of the **LGG MRI Segmentation** dataset, derived from the TCGA-LGG collection on *The Cancer Imaging Archive (TCIA)* and curated by Mateusz Buda. Their commitment to transparent data sharing enables researchers worldwide to develop, benchmark, and validate deep learning models for low-grade glioma segmentation. You can learn more about the dataset or contribute to their ongoing initiatives through the following links:
+
+- TCIA – TCGA-LGG Collection: https://www.cancerimagingarchive.net 
+- Kaggle – LGG MRI Segmentation Dataset: https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation
+
+We also actively encourage collaboration within our own project. Our repository is publicly available, and we invite contributions related to model development, preprocessing pipelines, evaluation metrics, or exploratory radiogenomic analysis. Whether you are a researcher, clinician, or data scientist, your expertise can help improve the robustness and clinical relevance of our neural network models.
+
+- GitHub Repository (Brain Tumor Detection Project):  
+  https://github.com/FabsGMartin/brain-tumor-detection
+
+We welcome pull requests, issue reporting, dataset discussions, and architectural improvements. In the spirit of open science, our goal is to create a collaborative space where insights and methods can be shared, replicated, and expanded. Through joint effort with both external data providers and the broader scientific community, we aim to produce reliable and reproducible tools that support research and clinical innovation in brain tumor analysis.
+
+---
+''')
+
 
 def page_team():
     st.header("👥 Project team")
@@ -613,28 +645,6 @@ def page_team():
         """
     )
 
-    st.markdown(
-        """
-        The project combines:
-        - **Medical and domain knowledge**, to formulate clinically relevant questions.
-        - **Machine learning and MLOps**, to design, train and deploy robust models.
-        - **Data engineering**, to process raw DICOM images into analysis-ready tensors.
-        - **Frontend and UX design**, to create interfaces that fit real clinical workflows.
-        Effective AI in healthcare always requires this kind of cross-disciplinary collaboration.
-        """
-    )
-
-def page_team():
-    st.header("👥 Project team")
-
-    st.markdown(
-        """
-        This work has been developed by a multidisciplinary team of students
-        in Data Science and backend development.  
-        
-        Below you can see our profiles and GitHub links.
-        """
-    )
 
     team = [
         {
@@ -712,6 +722,7 @@ menu = [
         "🖼️ Example cases",
         "🔍 Live prediction",
         "🎥 Media and appointment",
+        "🤝 Collaboration"
         "👥 About the Authors"
     ]
 
