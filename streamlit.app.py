@@ -1,3 +1,5 @@
+#-----------LIBRARIES LOADING-------------
+
 import streamlit as st  
 import pandas as pd
 import plotly.express as px
@@ -8,32 +10,39 @@ import base64
 import io
 import numpy as np
 
-try:
-    logo = Image.open("logo.png")
-    page_icon = logo
-except Exception:
-    logo = None
-    page_icon = "🧠"
+# ---------- PAGE CONFIGURATION ----------
 
 st.set_page_config(
-    page_title="Brain MRI Tumor App",
-    page_icon=page_icon,
+    page_title="Brain MRI Tumor Detection",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-@st.cache_data
-def load_data(path: str = "data.csv") -> pd.DataFrame:
-    try:
-        df = pd.read_csv(path)
-    except FileNotFoundError:
-        df = pd.DataFrame()
-    return df
+# ---------- CUSTOM CSS STYLING ----------
 
-df = load_data()
+st.markdown(
+"""
+    <style>
+    /* Highlight analysis box */
+    .highlight-box {
+        border-left: 6px solid #0747d4;
+        background-color: #F0F2F6;
+        color: black;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin: 8px 0;
+        font-size: 14.5px;
+    }
 
-GENDER_COL = "Gender"
-TUMOR_COL = "Tumor"
+    </style>
+    """
+  ,unsafe_allow_html=True)
+
+#-----------DATAFRAME AND MODEL LOADING-------------
+
+df_routes_label = pd.read_csv("../data/routes_label.csv")
+df_tumors =  pd.read_csv("../data/segmentation_routes_labels.csv")
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
     pil_image = pil_image.convert("RGB")
@@ -57,6 +66,9 @@ def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
     mask_bytes = base64.b64decode(mask_b64)
     mask_img = Image.open(io.BytesIO(mask_bytes))
     return np.array(mask_img)
+
+def page_home():
+
 
 def page_intro():
     st.header("🧠 Brain tumor detection and segmentation")
@@ -253,6 +265,26 @@ def page_model():
         responsible AI in healthcare.
         """
     )
+
+
+def page_sources():
+    '''
+   ## Dataset Description — LGG MRI Segmentation
+
+The **LGG MRI Segmentation** dataset comes from the TCGA-LGG collection hosted on [*The Cancer Imaging Archive (TCIA)*](https://www.cancerimagingarchive.net/collection/tcga-lgg/) and was curated and released on [Kaggle by Mateusz Buda](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation/data). It contains MRI scans of patients diagnosed with **low-grade gliomas**, along with expert-annotated **tumor segmentation masks**.
+
+### Key Characteristics
+- **Patients:** ~110  
+- **Total images:** ~3,900 MRI slices  
+- **Modalities:** Multi-channel `.tif` images (commonly including FLAIR and contrast variations)  
+- **Annotations:** Single-channel masks marking the tumor region  
+- **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks  
+
+### Why It’s Useful for Brain Tumor Segmentation
+- Provides **reliable ground-truth labels** for supervised learning.  
+- Includes **multiple slices per patient**, giving models diverse anatomical variation.  
+
+    '''
 
 def page_dataset():
     st.header("📊 Database analysis")
@@ -722,52 +754,59 @@ def page_team():
         """
     )
 
+# ---------- APP HEADER ----------
 
-def main():
-    st.title("Brain MRI Tumor – Demo Streamlit")
 
-    st.sidebar.header("Navigation")
-    st.sidebar.caption("Choose a section to explore the project.")
+st.markdown('''<h1 style="text-align: center;color: black;"> <b> Brain MRI Tumor Detection </b></h1>
+    <h5 style="text-align: center;color: gray"> <em> A Deep Learning based project to detect and segmetate brain tumors in MRI images </em> </h5>''', unsafe_allow_html=True)
+st.markdown("---")
 
-def main():
-    st.title("Brain MRI Tumor – Demo Streamlit")
+# ---------- SIDEBAR NAVIGATION ----------
 
-    st.sidebar.header("Navigation")
-    st.sidebar.caption("Choose a section to explore the project.")
+st.sidebar.header("Navigation Menu")
+st.sidebar.caption("Choose a section to explore the project.")
 
-    menu = [
-        "🏠 Introduction",
+menu = [
+        "🏠 Home"
+        "📚 Introduction",
+        "📂 Data Sources",
         "🧬 Deep learning model",
-        "📊 Database and charts",
+        "📊 Data Visualization",
         "🖼️ Example cases",
         "🔍 Live prediction",
         "🎥 Media and appointment",
         "🤝 Contribute",
-        "👥 Team"
+        "👥 About the Authors"
     ]
 
-    choice = st.sidebar.radio("Select a page:", menu)
+choice = st.sidebar.radio("Select a page:", menu)
 
-    if choice == "🏠 Introduction":
-        page_intro()
-    elif choice == "🧬 Deep learning model":
-        page_model()
-    elif choice == "📊 Database and charts":
-        page_dataset()
-    elif choice == "🖼️ Example cases":
-        page_cases()
-    elif choice == "🔍 Live prediction":
-        page_live_prediction()
-    elif choice == "🎥 Media and appointment":
-        page_media()
-    elif choice == "🤝 Contribute":
-        page_contribute()
-    elif choice == "👥 Team":
-        page_team()
+# ---------- APP BODY ----------
 
-if __name__ == "__main__":
-    main()
+if choice == "🏠 Home":
+    page_home()
+elif choice == "📚 Introduction":
+    page_intro()
+elif choice ==  "📂 Data Sources":  
+    page_sources()
+elif choice == "🧬 Deep learning model":
+    page_model()
+elif choice == "📊 Data Visualization":
+    page_dataset()
+elif choice == "🖼️ Example cases":
+    page_cases()
+elif choice == "🔍 Live prediction":
+    page_live_prediction()
+elif choice == "🎥 Media and appointment":
+    page_media()
+elif choice == "🤝 Contribute":
+    page_contribute()
+elif choice == "👥 Team":
+    page_team()
 
+# ---------- FOOTER ----------
+st.markdown("---")
+st.markdown("<p style='text-align: center; color: gray; font-size: 1em;'>© 2025 Brain MRI Tumor Detection </p>",unsafe_allow_html=True)
 
 
 
