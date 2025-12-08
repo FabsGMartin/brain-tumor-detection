@@ -228,7 +228,7 @@ def page_sources():
                 
 
 def page_data():
-    st.header("📊 Database analysis")
+    st.header("📊🧠 Data Visualization")
 
     with tab_graficas:
         if GENDER_COL not in df.columns:
