@@ -402,180 +402,166 @@ def page_dataset():
                 "or the class distribution."
             )
 
-def page_cases():
-    st.header("🖼️ Example cases: negative vs positive")
-
-    st.markdown(
-        "In this section we show an example patient **without tumor** (negative case) "
-        "and a patient **with tumor** (positive case), together with their segmentation masks."
-    )
+def page_cases(): 
+    st.header("🖼️ Ejemplos de tumores cerebrales en RM")
 
     st.markdown(
         """
-        In daily practice, neuroradiologists do not only answer “tumor yes/no”.
-        They carefully assess:
-        - **Location** of the lesion (e.g. frontal vs temporal lobe) and involvement of
-          eloquent areas (motor, language).
-        - **Mass effect and midline shift**, which indicate how much the lesion compresses
-          surrounding structures.
-        - **Edema and infiltration** patterns, often best seen on FLAIR.
-        - **Contrast enhancement** behavior, which can suggest high-grade components
-          or breakdown of the blood-brain barrier.
-        These qualitative descriptors, combined with clinical data, guide biopsy, surgery
-        and follow-up strategy.
+        Aquí mostramos cortes de **resonancia magnética cerebral** con y sin **tumor segmentado**.
+        En cada ejemplo verás, de izquierda a derecha:
+
+        1. **RM original**  
+        2. **Máscara binaria del tumor** (blanco = tumor, negro = fondo)  
+        3. **RM con la máscara superpuesta**
         """
     )
 
-    neg_img_path = "images/caso_negativo_mri.png"
-    neg_mask_path = "images/caso_negativo_mask.png"
-    pos_img_path = "images/caso_positivo_mri.png"
-    pos_mask_path = "images/caso_positivo_mask.png"
+    rows_dir = IMAGES_DIR
 
-    st.markdown("### Negative case (no tumor)")
-    col1, col2 = st.columns(2)
+    # ------------------ CASOS CON TUMOR ------------------
+    tumor_rows = sorted(rows_dir.glob("row_*.png"))
 
-    with col1:
-        st.caption("MRI – negative case")
-        try:
-            neg_img = Image.open(neg_img_path)
-            st.image(neg_img, use_column_width=True)
-        except Exception:
-            st.info(f"Place the negative case image at `{neg_img_path}`.")
+    # ------------------ CASOS SIN TUMOR ------------------
+    # tus archivos: example_no_tumor.png, example_no_tumor2.png, ...
+    no_tumor_rows = sorted(rows_dir.glob("example_no_tumor*.png"))
 
-    with col2:
-        st.caption("Mask – negative case (no tumor)")
-        try:
-            neg_mask = Image.open(neg_mask_path)
-            st.image(neg_mask, use_column_width=True)
-        except Exception:
-            st.info(f"Place the negative case mask at `{neg_mask_path}`.")
+    if not tumor_rows and not no_tumor_rows:
+        st.error(
+            "No se han encontrado imágenes ni `row_*.png` (con tumor) "
+            "ni `example_no_tumor*.png` (sin tumor) en la carpeta "
+            f"`{rows_dir}`."
+        )
+        return
 
-    st.markdown("---")
-    st.markdown("### Positive case (with tumor)")
-    col3, col4 = st.columns(2)
+    # =========================
+    # Contenedor central
+    # =========================
+    left_empty, center, right_empty = st.columns([1, 4, 1])
+    with center:
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    with col3:
-        st.caption("MRI – positive case")
-        try:
-            pos_img = Image.open(pos_img_path)
-            st.image(pos_img, use_column_width=True)
-        except Exception:
-            st.info(f"Place the positive case image at `{pos_img_path}`.")
+        # Selector: con tumor / sin tumor
+        tipo = st.radio(
+            "Selecciona tipo de caso",
+            ("🔴 Con tumor", "🟢 Sin tumor"),
+            horizontal=True,
+        )
 
-    with col4:
-        st.caption("Mask – positive case (tumor in red)")
-        try:
-            pos_mask = Image.open(pos_mask_path)
-            st.image(pos_mask, use_column_width=True)
-        except Exception:
-            st.info(f"Place the positive case mask at `{pos_mask_path}`.")
+        if tipo == "🔴 Con tumor":
+            active_rows = tumor_rows
+            state_key = "random_row_idx_tumor"
+            boton_texto = "🔀 Mostrar otro caso con tumor"
+            titulo_prefix = "Caso"
+            subtitulo_suffix = "tumor cerebral segmentado"
+        else:
+            active_rows = no_tumor_rows
+            state_key = "random_row_idx_no_tumor"
+            boton_texto = "🔀 Mostrar otro caso sano"
+            titulo_prefix = "Caso sano"
+            subtitulo_suffix = "RM sin tumor visible"
 
-    st.info(
-        """
-        The visual examples here are based on single 2D slices. Real-world decisions
-        are based on full 3D studies and multiple MRI sequences, as well as clinical
-        information. The goal of this demo is educational: to illustrate how a model
-        can highlight suspicious regions and complement expert image interpretation.
-        """
-    )
-
-def page_live_prediction():
-    st.header("🔍 Live prediction with Flask model")
-
-    st.markdown(
-        """
-        Upload an MRI image and the system will query the **deep learning model**
-        deployed in Flask to predict whether there is a tumor or not.
-        """
-    )
-
-    st.markdown(
-        """
-        In a realistic deployment, the input would often be an entire MRI study
-        (many slices and sequences) rather than a single image. A more advanced system
-        could:
-        - Aggregate predictions across slices to provide a per-patient risk score.
-        - Produce a 3D segmentation and estimate total tumor volume.
-        - Track changes over time across multiple exams to quantify treatment response.
-        Here we simplify this process to make the interaction easier to understand.
-        """
-    )
-
-    st.sidebar.markdown("### ⚙️ Flask API configuration")
-    api_url = st.sidebar.text_input("Base API URL", "http://localhost:8000")
-
-    uploaded_file = st.file_uploader(
-        "Upload an MRI image (PNG/JPG)",
-        type=["png", "jpg", "jpeg"]
-    )
-
-    st.warning(
-        """
-        Never upload real patient-identifiable data to public demos.
-        In real projects, DICOM images must be properly anonymized (removing names,
-        IDs and any facial features) and handled under strict data protection and
-        ethical guidelines.
-        """
-    )
-
-    if uploaded_file is not None:
-        pil_img = Image.open(uploaded_file)
-        st.image(pil_img, caption="Uploaded MRI", use_column_width=True)
-
-        if st.button("Analyze MRI"):
-            with st.spinner("Querying Flask model..."):
-                try:
-                    response = call_flask_model(api_url, pil_img)
-                except Exception as e:
-                    st.error(f"Error calling the API: {e}")
-                    return
-
-            st.markdown("### Model result")
-
-            has_tumor = response.get("has_tumor", None)
-            prob = response.get("probability", None)
-
-            if has_tumor is None or prob is None:
-                st.error(
-                    "The API response does not contain the expected keys "
-                    "(`has_tumor`, `probability`). Adapt the code to your format."
+        if not active_rows:
+            if tipo == "🔴 Con tumor":
+                st.warning(
+                    "No hay imágenes `row_*.png` para casos con tumor.\n"
+                    "Asegúrate de que `row_01.png`, `row_02.png`, ... están en la carpeta Imagen."
                 )
             else:
-                diagnosis = "TUMOR DETECTED" if has_tumor else "NO SIGNS OF TUMOR"
-                color = "🔴" if has_tumor else "🟢"
-
-                st.metric(
-                    label="Model diagnosis",
-                    value=f"{color} {diagnosis}"
+                st.warning(
+                    "No hay imágenes `example_no_tumor*.png` para casos sin tumor.\n"
+                    "Coloca archivos como `example_no_tumor.png`, "
+                    "`example_no_tumor2.png`, ... en la carpeta Imagen."
                 )
-                st.metric(
-                    label="Tumor probability",
-                    value=f"{prob*100:.2f} %"
-                )
+            return
 
-                st.markdown(
-                    """
-                    The reported probability should be interpreted as an approximate
-                    **risk score**, not as a definitive diagnosis. Values close to 0.5
-                    usually indicate uncertainty; in that range, the model should only
-                    be used as a prompt for closer human review, never as an automatic
-                    decision-maker.
-                    """
-                )
+        # Índice en session_state separado para cada tipo
+        if state_key not in st.session_state:
+            st.session_state[state_key] = 0
 
-            mask_b64 = response.get("mask_base64", None)
-            if mask_b64:
-                st.markdown("### Segmentation mask (optional)")
-                try:
-                    mask_arr = decode_mask_from_b64(mask_b64)
-                    st.image(mask_arr, caption="Mask predicted by the model", use_column_width=True)
-                except Exception:
-                    st.info("The mask returned by the API could not be decoded.")
+        # Botón centrado
+        bc1, bc2, bc3 = st.columns([1, 2, 1])
+        with bc2:
+            if st.button(boton_texto):
+                st.session_state[state_key] = random.randrange(len(active_rows))
 
-                st.caption(
-                    "Segmentation masks allow automatic computation of tumor volume and shape "
-                    "features (radiomics), which can be correlated with prognosis or molecular "
-                    "subtypes in research studies."
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        current_idx = st.session_state[state_key]
+        current_path = active_rows[current_idx]
+
+        # Nombre de archivo -> número de caso (si se puede)
+        stem = current_path.stem  # row_03 o example_no_tumor3
+        # intentamos sacar un número al final
+        num_part = "".join(ch for ch in stem if ch.isdigit())
+        case_number = num_part if num_part else "–"
+
+        st.markdown(
+            f"<h3 style='text-align:center'>{titulo_prefix} {case_number}: {subtitulo_suffix}</h3>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # =========================
+        # Mostrar imágenes
+        # =========================
+        if tipo == "🔴 Con tumor":
+            # fila row_XX con 3 columnas en una misma imagen
+            img_row = Image.open(current_path)
+            w, h = img_row.size
+            col_w = w // 3
+
+            img_mri      = img_row.crop((0,        0, col_w,   h))
+            img_mask     = img_row.crop((col_w,    0, 2*col_w, h))
+            img_mri_mask = img_row.crop((2*col_w,  0, w,       h))
+        else:
+            # imagen única de RM: generamos máscara vacía
+            img_mri = Image.open(current_path).convert("RGB")
+            w, h = img_mri.size
+            img_mask = Image.new("L", (w, h), color=0)  # negro
+            img_mri_mask = img_mri  # misma imagen (sin máscara)
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.markdown(
+                "<h5 style='text-align:center'>RM original</h5>",
+                unsafe_allow_html=True,
+            )
+            st.image(img_mri, use_column_width=True)
+
+        with c2:
+            st.markdown(
+                "<h5 style='text-align:center'>Máscara de tumor</h5>",
+                unsafe_allow_html=True,
+            )
+            st.image(img_mask, use_column_width=True)
+
+        with c3:
+            st.markdown(
+                "<h5 style='text-align:center'>RM con máscara</h5>",
+                unsafe_allow_html=True,
+            )
+            st.image(img_mri_mask, use_column_width=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        if tipo == "🔴 Con tumor":
+            note_text = (
+                "Nota: estos son ejemplos de cortes 2D con tumor. En la práctica se analizan "
+                "volúmenes 3D y múltiples secuencias (T1, T2, FLAIR, contraste), junto con "
+                "la historia clínica."
+            )
+        else:
+            note_text = (
+                "Nota: en estos casos no hay tumor en el corte mostrado y la máscara permanece "
+                "vacía. Compararlos con los casos con tumor ayuda a entrenar y validar el modelo."
+            )
+
+        st.markdown(
+            f"<p style='text-align:center; font-size:0.9rem;'>{note_text}</p>",
+            unsafe_allow_html=True,
+        )
+
                 )
 
 def page_media():
