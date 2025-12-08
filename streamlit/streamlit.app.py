@@ -402,7 +402,7 @@ def page_dataset():
                 "or the class distribution."
             )
 
-def page_cases(): 
+def page_cases():  
     st.header("🖼️ Ejemplos de tumores cerebrales en RM")
 
     st.markdown(
@@ -416,6 +416,7 @@ def page_cases():
         """
     )
 
+    # >>> leemos desde ../img
     rows_dir = IMAGES_DIR
 
     # ------------------ CASOS CON TUMOR (row_*.png) ------------------
@@ -432,14 +433,11 @@ def page_cases():
         )
         return
 
-  
     # ------------------Contenedor central------------------
-    
     left_empty, center, right_empty = st.columns([1, 4, 1])
     with center:
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Primero SIN tumor, luego CON tumor
         tipo = st.radio(
             "Selecciona tipo de caso",
             ("🟢 Sin tumor", "🔴 Con tumor"),
@@ -464,13 +462,14 @@ def page_cases():
             if tipo == "🔴 Con tumor":
                 st.warning(
                     "No hay imágenes `row_*.png` para casos con tumor.\n"
-                    "Asegúrate de que `row_01.png`, `row_02.png`, ... están en la carpeta Imagen."
+                    f"Asegúrate de que `row_01.png`, `row_02.png`, ... están en `{rows_dir}`."
                 )
             else:
                 st.warning(
                     "No hay imágenes `example_no_tumor*.png` para casos sin tumor.\n"
-                    "Coloca archivos como `example_no_tumor.png`, "
-                    "`example_no_tumor2.png`, ... en la carpeta Imagen."
+                    f"Coloca archivos como `example_no_tumor.png`, "
+                    "`example_no_tumor2.png`, ... en la carpeta "
+                    f"`{rows_dir}`."
                 )
             return
 
@@ -498,11 +497,8 @@ def page_cases():
         )
         st.markdown("<br>", unsafe_allow_html=True)
 
-       
         # ------------------Mostrar imágenes------------------
-        
         if tipo == "🔴 Con tumor":
-            # fila row_XX con 3 columnas en una misma imagen
             img_row = Image.open(current_path)
             w, h = img_row.size
             col_w = w // 3
@@ -534,7 +530,6 @@ def page_cases():
                 )
                 st.image(img_mri_mask, use_column_width=True)
 
-            
             st.markdown(
                 """
                 #### Clinical / data analyst interpretation (with tumor)
@@ -552,10 +547,8 @@ def page_cases():
             )
 
         else:
-            # ejemplo sin tumor: una única RM; la máscara está ya implícita (vacía)
             img_mri = Image.open(current_path).convert("RGB")
 
-            # Pequeño toggle de vista, pero la imagen es la misma
             vista = st.radio(
                 "Vista del caso sano",
                 ("🧼 Ver RM sin máscara", "🧼 Ver RM con máscara (sin tumor)"),
@@ -576,10 +569,8 @@ def page_cases():
                     unsafe_allow_html=True,
                 )
 
-            # En ambos casos se muestra la misma imagen, porque no hay tumor
             st.image(img_mri, use_column_width=False)
 
-            # 🧼 Descripción clínico–analítica en inglés (sin tumor)
             st.markdown(
                 """
                 #### Clinical / data analyst interpretation (no visible tumor)
@@ -615,6 +606,7 @@ def page_cases():
             f"<p style='text-align:center; font-size:0.9rem;'>{note_text}</p>",
             unsafe_allow_html=True,
         )
+
 
 
 def page_media():
