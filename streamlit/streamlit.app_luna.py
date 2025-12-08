@@ -121,22 +121,22 @@ def page_home():
 
 def page_intro():
     st.header("📚 **Introduction**")
-    st.markdown('''**Brain cancer**, and in particular **low-grade gliomas (LGG) requires early diagnosis and careful monitoring**.**MRI-based diagnosis** is especially valuable, as it **provides detailed structural information without exposing patients to radiation**.''') 
-
-    st.markdown(
-        """
-        <div class="highlight-box">
-
-        From a clinical perspective, low-grade gliomas often affect relatively young adults and may present with seizures, headaches or subtle cognitive changes. 
-        Even though they are classified as "low grade", they can progress to high-grade gliomas, so longitudinal monitoring with MRI and, when indicated, histopathological and molecular analysis are key for prognosis and treatment planning.
+    st.markdown('''
         
-        </div>
-        """, unsafe_allow_html=True)
+        <h5 style="text-align: center;color: black;"> <b>What Is a Low-Grade Glioma?</b></h5>
+                
+        **Brain cancer**, and in particular **low-grade gliomas (LGG) requires early diagnosis and careful monitoring**.
+        From a clinical perspective, low-grade gliomas often affect relatively young adults and may present with **seizures, headaches or subtle cognitive changes**. 
+        <br> </br>
+        ''', unsafe_allow_html=True)
 
+    st.markdown('<h5 style="text-align: center;color: black;"> <b>Why Early Detection Is Important?</b></h5>',unsafe_allow_html=True)
+    st.markdown('''
+                
+                **Early detection of brain tumors** plays a crucial role in **improving patient outcomes**. When identified at an early stage, tumors are often smaller, less aggressive, and more responsive to treatment, **allowing clinicians to intervene before neurological damage becomes extensive**.        
 
-    st.markdown('''**Early detection of brain tumors** plays a crucial role in **improving patient outcomes**. When identified at an early stage, tumors are often smaller, less aggressive, and more responsive to treatment, **allowing clinicians to intervene before neurological damage becomes extensive**.''') 
-    st.markdown('''Advances in **automated image analysis and deep learning** now offer the possibility of **supporting radiologists with faster, more consistent tumor identification**. By accelerating the diagnostic process, **reducing human error, and enabling timely intervention**, early detection becomes a powerful tool in improving survival rates and enhancing quality of life for patients affected by brain tumors.")
-    ''',unsafe_allow_html=True)
+                ''',unsafe_allow_html=True) 
+
 
     st.markdown('''
         <div class="red-box">
@@ -147,20 +147,18 @@ def page_intro():
         - About 80% of patients will present cognitive dysfunction, and 78% will present motor dysfunction.
         
         </div>
+        <br></br>
     ''',unsafe_allow_html=True)
 
+    st.markdown(''' 
+        <h5 style="text-align: center;color: black;"> <b>Why MRI tumor segmentation is important in Low-Grade Glioma Patients?</b></h5>     
 
-    st.markdown("---")
-    st.markdown(
-        "In this demo you will see:\n"
-        "- Statistics of the patient cohort.\n"
-        "- Example positive and negative cases.\n"
-        "- How a deep learning model can predict whether an MRI contains a tumor."
-    )
+        Even though they are classified as "low grade", **they can progress to high-grade gliomas**, so **longitudinal monitoring with MRI** and, when indicated, histopathological and molecular analysis are **key for prognosis and treatment planning**.
+                
+        **MRI-based diagnosis** is especially valuable, as it **provides detailed structural information without exposing patients to radiation**. 
 
-
-    st.markdown(
-        """
+         <div class="highlight-box">      
+        
         For radiologists and data scientists, MRI is interesting because it combines:
         - **Anatomical detail** (T1- and T2-weighted sequences).
         - **Edema and tumor extent** visualization (FLAIR).
@@ -168,8 +166,18 @@ def page_intro():
           which can correlate with cell density and vascularity.
         Integrating these heterogeneous sources of information is one of the main
         motivations for using deep learning in neuro-oncology.
-        """
-    )
+
+         </div>
+        <br></br>
+        ''',unsafe_allow_html=True)
+
+
+
+    st.markdown('''Advances in **automated image analysis and deep learning** now offer the possibility of **supporting radiologists with faster, more consistent tumor identification**. By accelerating the diagnostic process, **reducing human error, and enabling timely intervention**, early detection becomes a powerful tool in improving survival rates and enhancing quality of life for patients affected by brain tumors.")
+    ''',unsafe_allow_html=True)
+
+
+
 
 
 
