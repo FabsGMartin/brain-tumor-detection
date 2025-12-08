@@ -68,7 +68,7 @@ def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
     return np.array(mask_img)
 
 def page_home():
-
+    st.markdown("")
 
 def page_intro():
     st.header("🧠 Brain tumor detection and segmentation")
@@ -268,32 +268,32 @@ def page_model():
 
 
 def page_sources():
-st.markdown('''
-   ## Dataset Description — LGG MRI Segmentation
+    st.markdown('''
+    ## Dataset Description — LGG MRI Segmentation
 
-The **LGG MRI Segmentation** dataset comes from the TCGA-LGG collection hosted on [*The Cancer Imaging Archive (TCIA)*](https://www.cancerimagingarchive.net/collection/tcga-lgg/) and was curated and released on [Kaggle by Mateusz Buda](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation/data). It contains MRI scans of patients diagnosed with **low-grade gliomas**, along with expert-annotated **tumor segmentation masks**.
+    The **LGG MRI Segmentation** dataset comes from the TCGA-LGG collection hosted on [*The Cancer Imaging Archive (TCIA)*](https://www.cancerimagingarchive.net/collection/tcga-lgg/) and was curated and released on [Kaggle by Mateusz Buda](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation/data). It contains MRI scans of patients diagnosed with **low-grade gliomas**, along with expert-annotated **tumor segmentation masks**.
 
-### Key Characteristics
-- **Patients:** ~110  
-- **Total images:** ~3,900 MRI slices  
-- **Modalities:** Multi-channel `.tif` images (commonly including FLAIR and contrast variations)  
-- **Annotations:** Single-channel masks marking the tumor region  
-- **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks  
+    ### Key Characteristics
+    - **Patients:** ~110  
+    - **Total images:** ~3,900 MRI slices  
+    - **Modalities:** Multi-channel `.tif` images (commonly including FLAIR and contrast variations)  
+    - **Annotations:** Single-channel masks marking the tumor region  
+    - **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks  
 
-### Why It’s Useful for Brain Tumor Segmentation
-- Provides **reliable ground-truth labels** for supervised learning.  
-- Includes **multiple slices per patient**, giving models diverse anatomical variation.  
+    ### Why It’s Useful for Brain Tumor Segmentation
+    - Provides **reliable ground-truth labels** for supervised learning.  
+    - Includes **multiple slices per patient**, giving models diverse anatomical variation.  
 
-''')
+    ''')
 
-col1, col2, col3,col4,col5 = st.columns([2,5,2,5,2],gap="large",vertical_alignment="center")
-with col2:
-    with st.container(border=True):
-        st.image("./img/kaggle.png",use_container_width=True)
-with col4:
-    with st.container(border=True):
-        st.image("./img/TCIA.png",use_container_width=True)
-            
+    col1, col2, col3,col4,col5 = st.columns([2,5,2,5,2],gap="large",vertical_alignment="center")
+    with col2:
+        with st.container(border=True):
+            st.image("./img/kaggle.png",use_container_width=True)
+    with col4:
+        with st.container(border=True):
+            st.image("./img/TCIA.png",use_container_width=True)
+                
 
 def page_dataset():
     st.header("📊 Database analysis")
@@ -600,78 +600,6 @@ def page_media():
         """
     )
 
-def page_contribute():
-    st.header("🤝 Contribute and support patients")
-
-    # Mensaje en verde
-    st.success("June 8, 2023 – International Brain Tumor Day\n\n")
-
-    st.markdown(
-        """
-        If you would like to support patients and research related to brain tumors
-        and cancer in general, you can contribute through the  
-        **Asociación Española Contra el Cáncer (AECC)**.
-        
-        The AECC is a non-profit organization that has been working for decades across
-        Spain to **reduce the impact of cancer on society**. Its activity is based on
-        three main pillars:
-        
-        - **Support for patients and families**: emotional, psychological and social care,
-          guidance on practical aspects (work, benefits, legal issues) and accompaniment
-          throughout the disease.
-        - **Prevention and health education**: awareness campaigns about risk factors,
-          promotion of healthy lifestyles and early detection programs.
-        - **Funding of research**: competitive grants to research groups in oncology to
-          improve diagnosis, treatment and survival.
-        """
-    )
-
-    st.markdown(
-        """
-        In practice, the AECC acts through a network of local offices, hospitals and
-        volunteer programs. They offer:
-        
-        - Free **psycho-oncological support** for patients and relatives.
-        - **Social workers** who help manage administrative procedures and resources.
-        - **Telephone and online helplines** to answer questions and provide guidance.
-        - Collaboration with hospitals and research centers to drive **clinical and
-          translational research**.
-        """
-    )
-
-    # 🗓️ Bloque de cita con la asociación dentro
-    st.subheader("📅 Follow-up appointment")
-
-    cita = st.date_input(
-        "Select a date for the follow-up visit",
-        datetime.date.today(),
-        key="contribute_date"
-    )
-
-    # Logo clicable de la AECC dentro del bloque de cita
-    aecc_logo_url = "https://www.aecc.es/sites/default/files/styles/ps_xl/public/logo-aecc.png"
-    st.markdown(
-        f"""
-        <a href="https://www.aecc.es/" target="_blank">
-            <img src="{aecc_logo_url}" alt="AECC" width="260">
-        </a>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        By clicking on the logo, you will be redirected to the official website of the
-        Spanish Association Against Cancer, where you can:
-        - Request information and support for you or your family.
-        - Collaborate as a donor or volunteer.
-        - Learn more about prevention and early detection.
-        - Help fund cutting-edge cancer research projects.
-        """
-    )
-
-
-
 
 def page_team():
     st.header("👥 Project team")
@@ -784,7 +712,6 @@ menu = [
         "🖼️ Example cases",
         "🔍 Live prediction",
         "🎥 Media and appointment",
-        "🤝 Contribute",
         "👥 About the Authors"
     ]
 
@@ -808,9 +735,7 @@ elif choice == "🔍 Live prediction":
     page_live_prediction()
 elif choice == "🎥 Media and appointment":
     page_media()
-elif choice == "🤝 Contribute":
-    page_contribute()
-elif choice == "👥 Team":
+elif choice == "👥 About the Authors":
     page_team()
 
 # ---------- FOOTER ----------
