@@ -37,7 +37,6 @@ TUMOR_COL = "Tumor"
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
     pil_image = pil_image.convert("RGB")
-
     buf = io.BytesIO()
     pil_image.save(buf, format="PNG")
     img_bytes = buf.getvalue()
@@ -53,6 +52,39 @@ def call_flask_model(api_url: str, pil_image: Image.Image):
     resp.raise_for_status()
     return resp.json()
 
+# 👇 AQUÍ PEGAS ESTO
+try:
+    from flask_app import app as backup_flask_app  # ajusta flask_app al nombre real
+except Exception:
+    backup_flask_app = None
+
+
+def call_flask_model_backup(pil_image: Image.Image):
+    if backup_flask_app is None:
+        raise RuntimeError("Backup Flask app (.app) is not available or could not be imported.")
+
+    pil_image = pil_image.convert("RGB")
+    buf = io.BytesIO()
+    pil_image.save(buf, format="PNG")
+    img_bytes = buf.getvalue()
+    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+
+    with backup_flask_app.test_client() as client:
+        resp = client.post(
+            "/predict",
+            json={"image_base64": img_b64}
+        )
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Backup Flask app (.app) returned status {resp.status_code}: {resp.data!r}"
+            )
+
+        data = resp.get_json()
+        if data is None:
+            raise RuntimeError("Backup Flask app (.app) did not return valid JSON.")
+        return data
+
 def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
     mask_bytes = base64.b64decode(mask_b64)
     mask_img = Image.open(io.BytesIO(mask_bytes))
@@ -60,6 +92,19 @@ def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
 
 def page_intro():
     st.header("🧠 Brain tumor detection and segmentation")
+    
+    try:
+        mri_img = Image.open("images/TCGA_CS_4942_19970222_10.tif")
+        st.image(
+            mri_img,
+            caption="Example brain MRI (TCGA_CS_4942_19970222_10)",
+            use_column_width=True
+        )
+    except Exception:
+        st.info(
+            "Place the MRI image at `images/TCGA_CS_4942_19970222_10.tif` "
+            "or update the path in `page_intro()`."
+        )
     
     st.error(
         "- Around 80% of people living with a brain tumor require neurorehabilitation.\n"
@@ -254,112 +299,7 @@ def page_model():
         """
     )
 
-def page_dataset():
-    st.header("📊 Database analysis")
 
-    if df.empty:
-        st.error("`data.csv` was not found. Place it next to `app.py` and reload the page.")
-        return
-
-    st.caption(f"Rows: {df.shape[0]} · Columns: {df.shape[1]}")
-
-    st.markdown(
-        """
-        From an epidemiological and data-science point of view, this dataset represents
-        a simplified cohort. In real projects we would also collect variables such as:
-        - Age, presenting symptoms and performance status.
-        - Tumor grade, histology and molecular markers (e.g. IDH, MGMT, 1p/19q).
-        - Treatment (surgery, radiotherapy, chemotherapy, targeted therapies).
-        - Outcomes such as progression-free and overall survival.
-        These additional features enable models not only for **detection**, but also for
-        **prognosis**, **treatment selection** and **response evaluation**.
-        """
-    )
-
-    tab_tabla, tab_graficas = st.tabs(["📄 Table", "📈 Charts"])
-
-    with tab_tabla:
-        st.subheader("Dataset overview")
-        st.dataframe(df)
-
-    with tab_graficas:
-        if GENDER_COL not in df.columns:
-            st.info(f"The column `{GENDER_COL}` was not found in the CSV.")
-            return
-
-        st.markdown("### Distribution by gender")
-
-        df_count = df.groupby(GENDER_COL).size().reset_index(name="count")
-
-        fig_pie = px.pie(
-            df_count,
-            values="count",
-            names=GENDER_COL,
-            title="Distribution of patients by gender"
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-        st.caption(
-            "Differences in gender distribution can reflect real epidemiological trends, "
-            "but they may also be influenced by sample size, referral patterns or "
-            "inclusion criteria of the study."
-        )
-
-        if TUMOR_COL in df.columns:
-            st.markdown("### Tumor probability by gender")
-
-            df_avg = df.groupby(GENDER_COL)[TUMOR_COL].mean().reset_index(name="Tumor_Prob")
-
-            fig_bar = px.bar(
-                df_avg,
-                x=GENDER_COL,
-                y="Tumor_Prob",
-                title="Average tumor probability by gender",
-                labels={"Tumor_Prob": "Tumor probability"}
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
-
-            st.caption(
-                "Gender is usually not sufficient to make individual predictions by itself, "
-                "but it can be useful to describe the cohort and to check that the model's "
-                "performance is not systematically worse in a given subgroup."
-            )
-
-            st.markdown("### Query by gender")
-            genders = df[GENDER_COL].dropna().unique().tolist()
-            sel_gender = st.selectbox("Select gender", genders)
-
-            prob_sel = df_avg.loc[df_avg[GENDER_COL] == sel_gender, "Tumor_Prob"].values
-            if len(prob_sel) > 0:
-                st.success(
-                    f"Estimated average tumor probability for **{sel_gender}**: "
-                    f"**{prob_sel[0]*100:.2f}%**"
-                )
-
-            st.markdown("### Global class distribution (tumor vs no tumor)")
-
-            class_counts = df[TUMOR_COL].value_counts().reset_index()
-            class_counts.columns = ["Class", "Count"]
-
-            fig_bool = px.bar(
-                class_counts,
-                x="Class",
-                y="Count",
-                title="Number of patients per class (0 = no tumor, 1 = tumor)",
-                text="Count"
-            )
-            st.plotly_chart(fig_bool, use_container_width=True)
-
-            st.caption(
-                "If one class is much more frequent than the other (class imbalance), "
-                "we may need strategies such as re-weighting, resampling or specialized "
-                "loss functions to avoid a model that simply predicts the majority class."
-            )
-        else:
-            st.info(
-                f"The column `{TUMOR_COL}` was not found to compute probabilities "
-                "or the class distribution."
-            )
 
 def page_cases():
     st.header("🖼️ Example cases: negative vs positive")
@@ -389,6 +329,7 @@ def page_cases():
     neg_mask_path = "images/caso_negativo_mask.png"
     pos_img_path = "images/caso_positivo_mri.png"
     pos_mask_path = "images/caso_positivo_mask.png"
+
 
     st.markdown("### Negative case (no tumor)")
     col1, col2 = st.columns(2)
@@ -483,13 +424,26 @@ def page_live_prediction():
 
         if st.button("Analyze MRI"):
             with st.spinner("Querying Flask model..."):
+              
                 try:
                     response = call_flask_model(api_url, pil_img)
-                except Exception as e:
-                    st.error(f"Error calling the API: {e}")
-                    return
+                    used_backup = False
+                except Exception as e_main:
+                    st.error(f"Error calling main Flask API ({api_url}): {e_main}")
+                    st.info("Trying backup local Flask app (.app) instead...")
+
+             
+                    try:
+                        response = call_flask_model_backup(pil_img)
+                        used_backup = True
+                    except Exception as e_backup:
+                        st.error(f"Backup Flask app (.app) also failed: {e_backup}")
+                        return
 
             st.markdown("### Model result")
+
+            if 'used_backup' in locals() and used_backup:
+                st.caption("Result obtained from backup Flask app (.app).")
 
             has_tumor = response.get("has_tumor", None)
             prob = response.get("probability", None)
@@ -536,6 +490,7 @@ def page_live_prediction():
                     "features (radiomics), which can be correlated with prognosis or molecular "
                     "subtypes in research studies."
                 )
+
 
 def page_media():
     st.header("🎥 Visual demo and appointment")
@@ -679,7 +634,7 @@ def page_team():
             "photo": "images/team/miembro2.jpg"
         },
         {
-            "name": "Marcos Marín",
+            "name": "María  Marín",
             "github": "https://github.com/mmarin3011-cloud",
             "photo": "images/team/miembro3.jpg"
         },
@@ -738,7 +693,6 @@ def main():
     menu = [
         "🏠 Introduction",
         "🧬 Deep learning model",
-        "📊 Database and charts",
         "🖼️ Example cases",
         "🔍 Live prediction",
         "🎥 Media and appointment",
@@ -767,6 +721,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
 
 
 
