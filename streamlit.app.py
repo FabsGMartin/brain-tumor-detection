@@ -52,7 +52,7 @@ def call_flask_model(api_url: str, pil_image: Image.Image):
     resp.raise_for_status()
     return resp.json()
 
-# 👇 AQUÍ PEGAS ESTO
+
 try:
     from flask_app import app as backup_flask_app  # ajusta flask_app al nombre real
 except Exception:
@@ -553,7 +553,7 @@ def page_contribute():
         """
     )
 
-    # 🗓️ Bloque de cita con la asociación dentro
+  
     st.subheader("📅 Follow-up appointment")
 
     cita = st.date_input(
@@ -655,7 +655,7 @@ def page_team():
         },
     ]
 
-    # Grid de 2 filas x 3 columnas, con GitHub justo debajo del nombre
+   
     for row_start in range(0, len(team), 3):
         cols = st.columns(3)
         for col, member in zip(cols, team[row_start:row_start + 3]):
@@ -721,6 +721,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
