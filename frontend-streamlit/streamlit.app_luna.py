@@ -230,31 +230,6 @@ def page_sources():
 def page_data():
     st.header("📊 Database analysis")
 
-    if df.empty:
-        st.error("`data.csv` was not found. Place it next to `app.py` and reload the page.")
-        return
-
-    st.caption(f"Rows: {df.shape[0]} · Columns: {df.shape[1]}")
-
-    st.markdown(
-        """
-        From an epidemiological and data-science point of view, this dataset represents
-        a simplified cohort. In real projects we would also collect variables such as:
-        - Age, presenting symptoms and performance status.
-        - Tumor grade, histology and molecular markers (e.g. IDH, MGMT, 1p/19q).
-        - Treatment (surgery, radiotherapy, chemotherapy, targeted therapies).
-        - Outcomes such as progression-free and overall survival.
-        These additional features enable models not only for **detection**, but also for
-        **prognosis**, **treatment selection** and **response evaluation**.
-        """
-    )
-
-    tab_tabla, tab_graficas = st.tabs(["📄 Table", "📈 Charts"])
-
-    with tab_tabla:
-        st.subheader("Dataset overview")
-        st.dataframe(df)
-
     with tab_graficas:
         if GENDER_COL not in df.columns:
             st.info(f"The column `{GENDER_COL}` was not found in the CSV.")
@@ -752,8 +727,7 @@ def page_team():
 
     st.markdown(
         """
-        This work has been developed by a multidisciplinary team of students
-        in Data Science and backend development.  
+        This work has been developed by a multidisciplinary team of data scientist with knowledge in  AIops.  
         
         Below you can see our profiles and GitHub links.
         """
