@@ -87,8 +87,12 @@ def page_home():
     st.markdown(
         """
         Welcome to the Brain MRI Tumor Detection webpage!    
+              
+              
         This project focuses on the development of a deep learning system for **brain tumor segmentation and detection in MRI scans**, aiming to support medical research and improve early identification of low-grade gliomas.   
                  
+        <div class="highlight-box">   
+           
         The project combines:
         - **Medical and domain knowledge**, to formulate clinically relevant questions.
         - **AI engineering and AIOps**, to design, train and deploy robust models.
@@ -96,6 +100,8 @@ def page_home():
         - **Frontend and UX design**, to create interfaces that fit real clinical workflows.
         Effective AI in healthcare always requires this kind of cross-disciplinary collaboration.   
         
+        </div>
+
         The website is organized into several sections to guide you through the project:
         - 🏠 **Home** – Overview of the project  
         - 📚 **Introduction** – Context and motivation  
@@ -109,29 +115,40 @@ def page_home():
 
         Thank you for visiting — your interest and participation help strengthen ongoing efforts in medical imaging and cancer research.
 
-        """
+        """,unsafe_allow_html=True
     )
 
 
 def page_intro():
     st.header("📚 **Introduction**")
-    st.markdown("Early detection of brain tumors plays a crucial role in improving patient outcomes. When identified at an early stage, tumors are often smaller, less aggressive, and more responsive to treatment, allowing clinicians to intervene before neurological damage becomes extensive. MRI-based diagnosis is especially valuable, as it provides detailed structural information without exposing patients to radiation. Advances in automated image analysis and deep learning now offer the possibility of supporting radiologists with faster, more consistent tumor identification. By accelerating the diagnostic process, reducing human error, and enabling timely intervention, early detection becomes a powerful tool in improving survival rates and enhancing quality of life for patients affected by brain tumors.")
+    st.markdown('''**Brain cancer**, and in particular **low-grade gliomas (LGG) requires early diagnosis and careful monitoring**.**MRI-based diagnosis** is especially valuable, as it **provides detailed structural information without exposing patients to radiation**.''') 
+
+    st.markdown(
+        """
+        <div class="highlight-box">
+
+        From a clinical perspective, low-grade gliomas often affect relatively young adults and may present with seizures, headaches or subtle cognitive changes. 
+        Even though they are classified as "low grade", they can progress to high-grade gliomas, so longitudinal monitoring with MRI and, when indicated, histopathological and molecular analysis are key for prognosis and treatment planning.
+        
+        </div>
+        """, unsafe_allow_html=True)
+
+
+    st.markdown('''**Early detection of brain tumors** plays a crucial role in **improving patient outcomes**. When identified at an early stage, tumors are often smaller, less aggressive, and more responsive to treatment, **allowing clinicians to intervene before neurological damage becomes extensive**.''') 
+    st.markdown('''Advances in **automated image analysis and deep learning** now offer the possibility of **supporting radiologists with faster, more consistent tumor identification**. By accelerating the diagnostic process, **reducing human error, and enabling timely intervention**, early detection becomes a powerful tool in improving survival rates and enhancing quality of life for patients affected by brain tumors.")
+    ''',unsafe_allow_html=True)
+
     st.markdown('''
         <div class="red-box">
                 
         - Around 80% of people living with a brain tumor require neurorehabilitation.
-        - In Spain, more than 5,000 new brain tumor cases are diagnosed every year.
+        - In 2022, 322,000 new cases of brain and central nervous system tumors were estimated globally. 
         - Brain tumors account for approximately 2% of all cancers diagnosed in adults and 15% of those diagnosed in children.
         - About 80% of patients will present cognitive dysfunction, and 78% will present motor dysfunction.
-        - Therapeutic exercise can reduce cancer-related mortality by up to 59%.
         
         </div>
     ''',unsafe_allow_html=True)
 
-    st.markdown("## Introduction to the clinical problem")
-    st.warning(
-        "Brain cancer, and in particular low-grade gliomas (LGG) requires early diagnosis and careful monitoring. Magnetic resonance imaging (MRI) allows us to visualize the tumor, but manual delineation is slow and highly dependent on the specialist."
-    )
 
     st.markdown("---")
     st.markdown(
@@ -141,16 +158,6 @@ def page_intro():
         "- How a deep learning model can predict whether an MRI contains a tumor."
     )
 
-    st.info(
-        """
-        From a clinical perspective, low-grade gliomas often affect relatively young
-        adults and may present with seizures, headaches or subtle cognitive changes.
-        Even though they are classified as "low grade", they can progress to
-        high-grade gliomas, so longitudinal monitoring with MRI and, when indicated,
-        histopathological and molecular analysis (e.g. IDH mutation, 1p/19q codeletion)
-        are key for prognosis and treatment planning.
-        """
-    )
 
     st.markdown(
         """
@@ -709,7 +716,8 @@ We acknowledge and thank the contributors of the **LGG MRI Segmentation** datase
 We welcome pull requests, issue reporting, dataset discussions, and architectural improvements. In the spirit of open science, our goal is to create a collaborative space where insights and methods can be shared, replicated, and expanded. Through joint effort with both external data providers and the broader scientific community, we aim to produce reliable and reproducible tools that support research and clinical innovation in brain tumor analysis.
 ''')
 
-    st.markdown('''##### Support Cancer Research
+    st.markdown('''
+    ##### Support Cancer Research
 
     Beyond contributing to this project, you can also support the broader fight against cancer. Advancing treatments, improving diagnostics, and understanding tumor biology all depend on continued scientific and clinical research. Many organizations work tirelessly to fund studies, support patients, and accelerate the development of life-saving therapies.
 
@@ -721,7 +729,7 @@ We welcome pull requests, issue reporting, dataset discussions, and architectura
     - **Cancer Research UK:** https://www.cancerresearchuk.org  
     - **European Organisation for Research and Treatment of Cancer (EORTC):** https://www.eortc.org  
 
-    Your support—whether through scientific collaboration, sharing expertise, or contributing to research foundations—helps move the field forward and brings us closer to better outcomes for patients around the world.
+    Your support (whether through scientific collaboration, sharing expertise, or contributing to research foundations) helps move the field forward and brings us closer to better outcomes for patients around the world.
     ''',unsafe_allow_html=True)
 
 
