@@ -41,7 +41,7 @@ st.markdown(
 
 #-----------DATAFRAME AND MODEL LOADING-------------
 
-df_routes_label = pd.read_csv("../data/routes_label.csv")
+df_routes_label = pd.read_csv("../data/route_label.csv")
 df_tumors =  pd.read_csv("../data/segmentation_routes_labels.csv")
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
@@ -280,30 +280,34 @@ def page_model():
 
 def page_sources():
     st.markdown('''
-    ## Dataset Description — LGG MRI Segmentation
+    ##### **Data Sources**
 
     The **LGG MRI Segmentation** dataset comes from the TCGA-LGG collection hosted on [*The Cancer Imaging Archive (TCIA)*](https://www.cancerimagingarchive.net/collection/tcga-lgg/) and was curated and released on [Kaggle by Mateusz Buda](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation/data). It contains MRI scans of patients diagnosed with **low-grade gliomas**, along with expert-annotated **tumor segmentation masks**.
-
-    ### Key Characteristics
-    - **Patients:** ~110  
-    - **Total images:** ~3,900 MRI slices  
-    - **Modalities:** Multi-channel `.tif` images (commonly including FLAIR and contrast variations)  
-    - **Annotations:** Single-channel masks marking the tumor region  
-    - **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks  
-
-    ### Why It’s Useful for Brain Tumor Segmentation
-    - Provides **reliable ground-truth labels** for supervised learning.  
-    - Includes **multiple slices per patient**, giving models diverse anatomical variation.  
-
-    ''')
-
+    ''',unsafe_allow_html=True)
     col1, col2, col3,col4,col5 = st.columns([2,5,2,5,2],gap="large",vertical_alignment="center")
     with col2:
-        with st.container(border=True):
+        with st.container(border=True,):
             st.image("./img/kaggle.png",use_container_width=True)
     with col4:
         with st.container(border=True):
             st.image("./img/TCIA.png",use_container_width=True)
+                   
+    st.markdown('''
+    ##### **Data Key Characteristics**
+                  
+    - **Patients:** ~110  
+    - **Total images:** ~3,900 MRI slices  
+    - **Modalities:** Multi-channel `.tiff` images (commonly including FLAIR and contrast variations)  
+    - **Annotations:** Single-channel masks marking the tumor region  
+    - **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks  
+
+    ##### **Why It’s Useful for Brain Tumor Segmentation?**    
+                    
+    - Provides **reliable ground-truth labels** for supervised learning.  
+    - Includes **multiple slices per patient**, giving models diverse anatomical variation.  
+
+    ''',unsafe_allow_html=True)
+
                 
 
 def page_dataset():
@@ -629,7 +633,7 @@ We also actively encourage collaboration within our own project. Our repository 
 
 We welcome pull requests, issue reporting, dataset discussions, and architectural improvements. In the spirit of open science, our goal is to create a collaborative space where insights and methods can be shared, replicated, and expanded. Through joint effort with both external data providers and the broader scientific community, we aim to produce reliable and reproducible tools that support research and clinical innovation in brain tumor analysis.
 
----
+
 ''')
 
 
@@ -714,7 +718,7 @@ st.sidebar.header("Navigation Menu")
 st.sidebar.caption("Choose a section to explore the project.")
 
 menu = [
-        "🏠 Home"
+        "🏠 Home",
         "📚 Introduction",
         "📂 Data Sources",
         "🧬 Deep learning model",
@@ -722,7 +726,7 @@ menu = [
         "🖼️ Example cases",
         "🔍 Live prediction",
         "🎥 Media and appointment",
-        "🤝 Collaboration"
+        "🤝 Collaboration",
         "👥 About the Authors"
     ]
 
@@ -746,6 +750,8 @@ elif choice == "🔍 Live prediction":
     page_live_prediction()
 elif choice == "🎥 Media and appointment":
     page_media()
+elif choice =="🤝 Collaboration":
+    page_collab()
 elif choice == "👥 About the Authors":
     page_team()
 
