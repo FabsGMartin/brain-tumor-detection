@@ -310,7 +310,7 @@ def page_data():
             )
 
 def page_cases():
-    st.header("🖼️ Example cases: negative vs positive")
+    st.header("📊🧠 Data Visualization")
 
     st.markdown(
         "In this section we show an example patient **without tumor** (negative case) "
@@ -815,7 +815,7 @@ menu = [
         "🏠 Home",
         "📚 Introduction",
         "📂 Data Sources",
-        "📊 Data Visualization",
+        "📊🧠 Data Visualization",
         "🧬 Deep learning model",
         "🔍 Live prediction",
         "🎥 Visual demo",
@@ -833,7 +833,7 @@ elif choice == "📚 Introduction":
     page_intro()
 elif choice ==  "📂 Data Sources":  
     page_sources()
-elif choice == "📊 Data Visualization":
+elif choice == "📊🧠 Data Visualization":
     page_data()
 elif choice == "🧬 Deep learning model":
     page_model()
