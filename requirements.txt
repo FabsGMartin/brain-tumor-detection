@@ -1,0 +1,26 @@
+# Deep Learning Segmentation Model Dependencies
+# TensorFlow with CUDA support for GPU acceleration
+tensorflow[and-cuda]
+
+# Data manipulation and analysis
+pandas>=1.5.0
+numpy>=1.21.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+
+# Image processing
+opencv-python>=4.6.0
+scikit-image>=0.19.0
+tifffile>=2022.0.0
+
+# Machine learning utilities
+scikit-learn>=1.1.0
+
+# Jupyter notebook support
+jupyter>=1.0.0
+ipython>=8.0.0
+
+# Interactive visualization
+plotly>=5.0.0
