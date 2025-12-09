@@ -1,3 +1,6 @@
+# Deep Learning Segmentation Model Dependencies
+tensorflow
+
 # Backend dependencies (Flask)
 flask>=2.0.0
 
