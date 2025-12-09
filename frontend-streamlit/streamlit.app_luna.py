@@ -427,11 +427,7 @@ def page_cases():
     no_tumor_rows = sorted(rows_dir.glob("no_tumor*.png"))
 
     if not tumor_rows and not no_tumor_rows:
-        st.error(
-            "No se han encontrado imágenes ni `row_*.png` (con tumor) "
-            "ni `example_no_tumor*.png` (sin tumor) en la carpeta "
-            f"`{rows_dir}`."
-        )
+        st.error("Images Not found (0 and 1)")
         return
 
     # =========================
@@ -441,12 +437,11 @@ def page_cases():
     with center:
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Primero SIN tumor, luego CON tumor
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            tipo = st.radio("Show the case example: ",("🟢 Without tumor", "🔴 With tumor"),horizontal=True,index=0, width="stretch")
+            tipo = st.radio("Show a case example: ",("🟢 Without tumor", "🔴 With tumor"),horizontal=True,index=0, width="stretch")
 
-        if tipo == "🔴 With Tumor":
+        if tipo == "🔴 With tumor":
             active_rows = tumor_rows
             state_key = "random_row_idx_tumor"
             boton_texto = "🔀 Show another tumor MRI image"
@@ -460,7 +455,7 @@ def page_cases():
             subtitulo_suffix = "No tumor RMI image"
 
         if not active_rows:
-            if tipo == "🔴 Con tumor":
+            if tipo == "🔴 With tumor":
                 st.warning("Tumor images not found")
             else:
                 st.warning("No tumor images not fount")
@@ -469,7 +464,6 @@ def page_cases():
         if state_key not in st.session_state:
             st.session_state[state_key] = 0
 
-        # Botón centrado
         bc1, bc2, bc3 = st.columns([1, 2, 1])
         with bc2:
             if st.button(boton_texto,use_container_width=True):
@@ -491,40 +485,16 @@ def page_cases():
         st.markdown("<br>", unsafe_allow_html=True)
 
         # =========================
-        # Mostrar imágenes
+        # Show images
         # =========================
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
         if tipo == "🔴 Con tumor":
             # fila row_XX con 3 columnas en una misma imagen
             img_row = Image.open(current_path)
-            w, h = img_row.size
-            col_w = w // 3
+            st.image(img_row, use_container_width=True)
 
-            img_mri = img_row.crop((0, 0, col_w, h))
-            img_mask = img_row.crop((col_w, 0, 2 * col_w, h))
-            img_mri_mask = img_row.crop((2 * col_w, 0, w, h))
-
-            c1, c2, c3 = st.columns(3)
-
-            with c1:
-                st.markdown(
-                    "<h5 style='text-align:center'>RM original</h5>",
-                    unsafe_allow_html=True,
-                )
-                st.image(img_mri, use_container_width=True)
-
-            with c2:
-                st.markdown(
-                    "<h5 style='text-align:center'>Máscara de tumor</h5>",
-                    unsafe_allow_html=True,
-                )
-                st.image(img_mask, use_container_width=True)
-
-            with c3:
-                st.markdown(
-                    "<h5 style='text-align:center'>RM con máscara</h5>",
-                    unsafe_allow_html=True,
-                )
-                st.image(img_mri_mask, use_container_width=True)
 
             # 🧠 Descripción clínico–analítica en inglés (con tumor)
             st.markdown(
@@ -544,10 +514,8 @@ def page_cases():
             )
 
         else:
-            # ejemplo sin tumor: una única RM; la máscara está ya implícita (vacía)
             img_mri = Image.open(current_path).convert("RGB")
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<h5 style='text-align:center'>No Tumor RMI Images</h5>",unsafe_allow_html=True,)
             st.image(img_mri,  use_container_width=False)
             st.markdown(
                 """
@@ -564,8 +532,6 @@ def page_cases():
                   false positive.
                 """
             )
-
-        st.markdown("<br>", unsafe_allow_html=True)
 
 
 
