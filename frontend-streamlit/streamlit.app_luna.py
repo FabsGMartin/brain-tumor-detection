@@ -488,17 +488,15 @@ def page_cases():
         # Show images
         # =========================
 
-        st.markdown("<br>", unsafe_allow_html=True)
 
         if tipo == "🔴 Con tumor":
             # fila row_XX con 3 columnas en una misma imagen
             img_row = Image.open(current_path)
             st.image(img_row, use_container_width=True)
-
-
-            # 🧠 Descripción clínico–analítica en inglés (con tumor)
             st.markdown(
                 """
+                <br></br>
+
                 #### Clinical / data analyst interpretation (with tumor)
 
                 - **Region of interest:** a focal hyperintense lesion is visible within the brain
@@ -510,8 +508,7 @@ def page_cases():
                 - **From a data point of view:** this slice would be labelled as a **positive
                   sample**, and the mask provides dense supervision for training segmentation
                   models (Dice, IoU, pixel-wise accuracy, etc.).
-                """
-            )
+                """,unsafe_allow_html=True)
 
         else:
             img_mri = Image.open(current_path).convert("RGB")
@@ -519,6 +516,8 @@ def page_cases():
             st.image(img_mri,  use_container_width=False)
             st.markdown(
                 """
+                <br></br>
+
                 #### Clinical / data analyst interpretation (no visible tumor)
 
                 - **Overall impression:** normal-appearing brain MRI for this slice, with
@@ -530,8 +529,7 @@ def page_cases():
                 - **Expected behavior:** the model should assign low tumor probability to
                   all pixels in this image. Any high activation here would be a potential
                   false positive.
-                """
-            )
+                """,unsafe_allow_html=True)
 
 
 
