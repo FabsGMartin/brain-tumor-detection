@@ -56,13 +56,13 @@ st.markdown(
     """
   ,unsafe_allow_html=True)
 
-#-----------DATAFRAME AND MODEL LOADING-------------
+#-----------DATAFRAME LOADING and ROUTES -------------
 
 df = pd.read_csv("../data/route_label.csv")
 df_tumors =  pd.read_csv("../data/segmentation_routes_labels.csv")
 
 BASE_DIR = Path(__file__).resolve().parent
-IMAGES_DIR = BASE_DIR / "Imagen"
+IMAGES_DIR = BASE_DIR / "img"
 
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
@@ -356,27 +356,27 @@ From a clinical research perspective, the cohort can be succinctly described as:
 """,unsafe_allow_html=True)
 
 
+
 def page_cases(): 
-    st.header("🖼️ Ejemplos de tumores cerebrales en RM")
+    st.header("🧠 MRI Images Visualization")
 
     st.markdown(
         """
-        Aquí mostramos cortes de **resonancia magnética cerebral** con y sin **tumor segmentado**.
-        En cada ejemplo verás:
+        Here we show slices of **brain magnetic resonance imaging (MRI)** with and without **segmented tumor**.
+        In each example you will see:
 
-        1. **RM original**  
-        2. **Máscara binaria del tumor** (blanco = tumor, negro = fondo)  
-        3. **RM con la máscara superpuesta** (solo en los casos con tumor)
-        """
-    )
+        1. **Original MRI**
+        2. **Binary tumor mask** (white = tumor, black = background)
+        3. **MRI with the superimposed mask** (only in cases with a tumor)
+        """)
 
     rows_dir = IMAGES_DIR
 
     # ------------------ CASOS CON TUMOR (row_*.png) ------------------
-    tumor_rows = sorted(rows_dir.glob("row_*.png"))
+    tumor_rows = sorted(rows_dir.glob("tumor_*.png"))
 
     # ------------------ CASOS SIN TUMOR (example_no_tumor*.png) ------------------
-    no_tumor_rows = sorted(rows_dir.glob("example_no_tumor*.png"))
+    no_tumor_rows = sorted(rows_dir.glob("no_tumor*.png"))
 
     if not tumor_rows and not no_tumor_rows:
         st.error(
@@ -416,16 +416,9 @@ def page_cases():
 
         if not active_rows:
             if tipo == "🔴 Con tumor":
-                st.warning(
-                    "No hay imágenes `row_*.png` para casos con tumor.\n"
-                    "Asegúrate de que `row_01.png`, `row_02.png`, ... están en la carpeta Imagen."
-                )
+                st.warning("Tumor images not found")
             else:
-                st.warning(
-                    "No hay imágenes `example_no_tumor*.png` para casos sin tumor.\n"
-                    "Coloca archivos como `example_no_tumor.png`, "
-                    "`example_no_tumor2.png`, ... en la carpeta Imagen."
-                )
+                st.warning("No tumor images not fount")
             return
 
         if state_key not in st.session_state:
@@ -488,7 +481,7 @@ def page_cases():
                 )
                 st.image(img_mri_mask, use_column_width=True)
 
- 
+            # 🧠 Descripción clínico–analítica en inglés (con tumor)
             st.markdown(
                 """
                 #### Clinical / data analyst interpretation (with tumor)
@@ -550,85 +543,27 @@ def page_cases():
                 """
             )
 
+        st.markdown("<br>", unsafe_allow_html=True)
 
+        if tipo == "🔴 Con tumor":
+            note_text = (
+                "Nota: estos son ejemplos de cortes 2D con tumor. En la práctica se analizan "
+                "volúmenes 3D y múltiples secuencias (T1, T2, FLAIR, contraste), junto con "
+                "la historia clínica."
+            )
+        else:
+            note_text = (
+                "Nota: en estos casos no hay tumor en el corte mostrado. La 'máscara' es vacía, "
+                "por lo que la RM con y sin máscara se ven iguales. Compararlos con los casos "
+                "con tumor ayuda a entrenar y validar el modelo."
+            )
+
+        st.markdown(
+            f"<p style='text-align:center; font-size:0.9rem;'>{note_text}</p>",
+            unsafe_allow_html=True,
+        )
 
  
-def page_cases():
-    st.header("📊🧠 Data Visualization")
-
-    st.markdown(
-        "In this section we show an example patient **without tumor** (negative case) "
-        "and a patient **with tumor** (positive case), together with their segmentation masks."
-    )
-
-    st.markdown(
-        """
-        In daily practice, neuroradiologists do not only answer “tumor yes/no”.
-        They carefully assess:
-        - **Location** of the lesion (e.g. frontal vs temporal lobe) and involvement of
-          eloquent areas (motor, language).
-        - **Mass effect and midline shift**, which indicate how much the lesion compresses
-          surrounding structures.
-        - **Edema and infiltration** patterns, often best seen on FLAIR.
-        - **Contrast enhancement** behavior, which can suggest high-grade components
-          or breakdown of the blood-brain barrier.
-        These qualitative descriptors, combined with clinical data, guide biopsy, surgery
-        and follow-up strategy.
-        """
-    )
-
-    neg_img_path = "images/caso_negativo_mri.png"
-    neg_mask_path = "images/caso_negativo_mask.png"
-    pos_img_path = "images/caso_positivo_mri.png"
-    pos_mask_path = "images/caso_positivo_mask.png"
-
-    st.markdown("### Negative case (no tumor)")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.caption("MRI – negative case")
-        try:
-            neg_img = Image.open(neg_img_path)
-            st.image(neg_img, use_column_width=True)
-        except Exception:
-            st.info(f"Place the negative case image at `{neg_img_path}`.")
-
-    with col2:
-        st.caption("Mask – negative case (no tumor)")
-        try:
-            neg_mask = Image.open(neg_mask_path)
-            st.image(neg_mask, use_column_width=True)
-        except Exception:
-            st.info(f"Place the negative case mask at `{neg_mask_path}`.")
-
-    st.markdown("---")
-    st.markdown("### Positive case (with tumor)")
-    col3, col4 = st.columns(2)
-
-    with col3:
-        st.caption("MRI – positive case")
-        try:
-            pos_img = Image.open(pos_img_path)
-            st.image(pos_img, use_column_width=True)
-        except Exception:
-            st.info(f"Place the positive case image at `{pos_img_path}`.")
-
-    with col4:
-        st.caption("Mask – positive case (tumor in red)")
-        try:
-            pos_mask = Image.open(pos_mask_path)
-            st.image(pos_mask, use_column_width=True)
-        except Exception:
-            st.info(f"Place the positive case mask at `{pos_mask_path}`.")
-
-    st.info(
-        """
-        The visual examples here are based on single 2D slices. Real-world decisions
-        are based on full 3D studies and multiple MRI sequences, as well as clinical
-        information. The goal of this demo is educational: to illustrate how a model
-        can highlight suspicious regions and complement expert image interpretation.
-        """
-    )
 
 def page_model():
     st.header("🧬 Deep learning model")
