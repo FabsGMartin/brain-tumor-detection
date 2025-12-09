@@ -442,12 +442,9 @@ def page_cases():
         st.markdown("<br>", unsafe_allow_html=True)
 
         # Primero SIN tumor, luego CON tumor
-        tipo = st.radio(
-            "Selecciona tipo de caso",
-            ("🟢 Sin tumor", "🔴 Con tumor"),
-            horizontal=True,
-            index=0,
-        )
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            tipo = st.radio("Selecciona tipo de caso",("🟢 Sin tumor", "🔴 Con tumor"),horizontal=True,index=0, width="stretch")
 
         if tipo == "🔴 Con tumor":
             active_rows = tumor_rows
@@ -475,7 +472,7 @@ def page_cases():
         # Botón centrado
         bc1, bc2, bc3 = st.columns([1, 2, 1])
         with bc2:
-            if st.button(boton_texto):
+            if st.button(boton_texto,use_container_width=True):
                 st.session_state[state_key] = random.randrange(len(active_rows))
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -513,21 +510,21 @@ def page_cases():
                     "<h5 style='text-align:center'>RM original</h5>",
                     unsafe_allow_html=True,
                 )
-                st.image(img_mri, use_column_width=True)
+                st.image(img_mri, use_container_width=True)
 
             with c2:
                 st.markdown(
                     "<h5 style='text-align:center'>Máscara de tumor</h5>",
                     unsafe_allow_html=True,
                 )
-                st.image(img_mask, use_column_width=True)
+                st.image(img_mask, use_container_width=True)
 
             with c3:
                 st.markdown(
                     "<h5 style='text-align:center'>RM con máscara</h5>",
                     unsafe_allow_html=True,
                 )
-                st.image(img_mri_mask, use_column_width=True)
+                st.image(img_mri_mask, use_container_width=True)
 
             # 🧠 Descripción clínico–analítica en inglés (con tumor)
             st.markdown(
@@ -550,26 +547,11 @@ def page_cases():
             # ejemplo sin tumor: una única RM; la máscara está ya implícita (vacía)
             img_mri = Image.open(current_path).convert("RGB")
 
-            # Pequeño toggle de vista, pero la imagen es la misma
-            vista = st.radio(
-                "Vista del caso sano",
-                ("🧼 Ver RM sin máscara", "🧼 Ver RM con máscara (sin tumor)"),
-                horizontal=True,
-                key="vista_sano",
-            )
 
             st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<h5 style='text-align:center'>RMI images original (sin tumor)</h5>",unsafe_allow_html=True,)
 
-            if vista == "🧼 Ver RM sin máscara":
-                st.markdown(
-                    "<h5 style='text-align:center'>RM original (sin tumor)</h5>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    "<h5 style='text-align:center'>RM con máscara (máscara vacía)</h5>",
-                    unsafe_allow_html=True,
-                )
+                
 
             # En ambos casos se muestra la misma imagen, porque no hay tumor
             st.image(img_mri, use_column_width=False)
