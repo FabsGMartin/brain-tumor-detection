@@ -235,86 +235,126 @@ def page_sources():
                 
 
 def page_data():
-    st.header("📊🧠 Data Visualization")
+    st.header("📊 Dataset Visualization")
+    df_routes = pd.read_csv("../data/route_label.csv",index_col=0)
+    tab_plots,tab_table = st.tabs([ "📈 Plots","📄 Table"])
 
-    with tab_graficas:
-        if GENDER_COL not in df.columns:
-            st.info(f"The column `{GENDER_COL}` was not found in the CSV.")
-            return
 
-        st.markdown("### Distribution by gender")
+    # ===== PLOTS =====
+    with tab_plots:
+        st.subheader("Class distribution")
 
-        df_count = df.groupby(GENDER_COL).size().reset_index(name="count")
+        # Count 0 and 1
+        class_counts = df_routes["mask"].value_counts().reset_index()
+        class_counts.columns = ["mask_value", "Number of images"]
 
+        class_counts["Class"] = class_counts["mask_value"].map({
+            0: "0 – Negative (no tumor)",
+            1: "1 – Positive (tumor present)",})
+
+        # Keep only the columns needed for the plot
+        class_counts = class_counts[["Class", "Number of images"]]
+
+        # Pie chart
         fig_pie = px.pie(
-            df_count,
-            values="count",
-            names=GENDER_COL,
-            title="Distribution of patients by gender"
+            class_counts,
+            names="Class",
+            values="Number of images",
+            title="Tumor vs No Tumor",
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        col1, col2, col3 = st.columns(3)
+        with col2:
+            st.plotly_chart(fig_pie, use_container_width=True)
 
-        st.caption(
-            "Differences in gender distribution can reflect real epidemiological trends, "
-            "but they may also be influenced by sample size, referral patterns or "
-            "inclusion criteria of the study."
-        )
+        # Global prevalence (image-level)
+        prevalence = df_routes["mask"].mean()
+        st.markdown(f'''
+                    <div style="text-align: center;">     
+                          
+                    *In this dataset ≈ {prevalence*100:.2f}% of the images are labelled as positive (`mask = 1`).*
 
-        if TUMOR_COL in df.columns:
-            st.markdown("### Tumor probability by gender")
+                     </div>   
 
-            df_avg = df.groupby(GENDER_COL)[TUMOR_COL].mean().reset_index(name="Tumor_Prob")
+            ''',unsafe_allow_html=True)
 
-            fig_bar = px.bar(
-                df_avg,
-                x=GENDER_COL,
-                y="Tumor_Prob",
-                title="Average tumor probability by gender",
-                labels={"Tumor_Prob": "Tumor probability"}
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
+        # ===== TABLE =====
+        with tab_table:
+            st.subheader("`route_label.csv`")
+            st.markdown("*Overview of routes MRI images and mask, with their corresponding label (0 – Negative (no tumor),1 – Positive (tumor present)*")
+            st.dataframe(df_routes[df_routes.columns])
+    # =====================================================================
+    #  🔬 Scientific medical + data science interpretation
+    # =====================================================================
+    prevalence_global = df_routes["mask"].mean()
+    negative_pct = (1 - prevalence_global) * 100
+    positive_pct = prevalence_global * 100
+    
+    show_analysis = st.expander("Show Authors' Analysis", expanded=True)
+    with show_analysis:
+        st.markdown(f"""
+                    
+        <h4 style="margin:0 0 8px 0;">✍️ Author’s Analysis</h4>
+    <div class="highlight-box">  
+<p style="margin:0;">                             
 
-            st.caption(
-                "Gender is usually not sufficient to make individual predictions by itself, "
-                "but it can be useful to describe the cohort and to check that the model's "
-                "performance is not systematically worse in a given subgroup."
-            )
+                    
+<h5 style="text-align: center;color: black;"> <b> Cohort composition (image-level class distribution)</b></h5>
+                    
+In this dataset:
 
-            st.markdown("### Query by gender")
-            genders = df[GENDER_COL].dropna().unique().tolist()
-            sel_gender = st.selectbox("Select gender", genders)
 
-            prob_sel = df_avg.loc[df_avg[GENDER_COL] == sel_gender, "Tumor_Prob"].values
-            if len(prob_sel) > 0:
-                st.success(
-                    f"Estimated average tumor probability for **{sel_gender}**: "
-                    f"**{prob_sel[0]*100:.2f}%**"
-                )
+- **≈ {negative_pct:.1f}%** of MRI slices are labelled as  
+  **0 – Negative (no tumor)**  
+- **≈ {positive_pct:.1f}%** of MRI slices are labelled as  
+  **1 – Positive (tumor present)**  
 
-            st.markdown("### Global class distribution (tumor vs no tumor)")
+This yields an **image-level tumor prevalence of approximately {positive_pct:.1f}%**.
 
-            class_counts = df[TUMOR_COL].value_counts().reset_index()
-            class_counts.columns = ["Class", "Count"]
+From a methodological standpoint, this indicates a **moderately imbalanced dataset**, 
+with a dominant negative class and a substantial proportion of positive slices.  
+Therefore, **any classification model** must outperform a trivial baseline predicting 
+the majority class (≈ **{negative_pct:.1f}% accuracy**) to demonstrate meaningful discriminative value.
 
-            fig_bool = px.bar(
-                class_counts,
-                x="Class",
-                y="Count",
-                title="Number of patients per class (0 = no tumor, 1 = tumor)",
-                text="Count"
-            )
-            st.plotly_chart(fig_bool, use_container_width=True)
 
-            st.caption(
-                "If one class is much more frequent than the other (class imbalance), "
-                "we may need strategies such as re-weighting, resampling or specialized "
-                "loss functions to avoid a model that simply predicts the majority class."
-            )
-        else:
-            st.info(
-                f"The column `{TUMOR_COL}` was not found to compute probabilities "
-                "or the class distribution."
-            )
+<h5 style="text-align: center;color: black;"> <b> Clinical and machine-learning implications </b></h5>
+
+- The enrichment in tumor-positive slices (≈ {positive_pct:.1f}%) is higher than in routine clinical cohorts, 
+  which usually contain far fewer tumors. This is advantageous for model development, as it provides a 
+  sufficient number of positive examples to learn tumor-related patterns and to train segmentation models.
+
+- Because of the moderate class imbalance, evaluation should not rely solely on accuracy. More informative metrics are:  
+
+  - **Sensitivity / recall** for positive cases (`mask = 1`)  
+  - **Specificity** for negative cases (`mask = 0`)  
+  - **AUC-ROC** and **AUC-PR**, which better capture performance under imbalance.
+
+- If the model tends to under-detect tumors, one may consider:  
+  - **Class-weighted loss functions**  
+  - **Focal loss**  
+  - **Oversampling of positive slices** or undersampling of negatives.
+
+
+<h5 style="text-align: center;color: black;"> <b> 
+
+Utility of the `mask` column
+</b></h5>
+Although voxel-wise segmentation masks are available via `mask_path`, the binary image-level label (`mask`) enables:
+
+
+- Rapid assessment of **class distribution** (as visualised in the pie chart).  
+- Training of a **binary tumor vs. no-tumor classifier** as a screening or pre-filtering stage.  
+- Stratified analyses, for example comparing intensity distributions or radiomic features between positive and negative slices.
+
+</p>
+<div/> 
+
+From a clinical research perspective, the cohort can be succinctly described as:
+
+> *"In this dataset, approximately {positive_pct:.1f}% of MRI slices contain visible tumor tissue according to expert segmentation. This prevalence establishes the baseline that any automated detection model must exceed in order to be clinically relevant."*
+
+
+""",unsafe_allow_html=True)
+
 
 def page_cases(): 
     st.header("🖼️ Ejemplos de tumores cerebrales en RM")
@@ -509,155 +549,6 @@ def page_cases():
                   false positive.
                 """
             )
-
-
-def page_dataset():  
-    st.header("📊 Dataset analysis")
-
-    # 1st path: Imagen folder (current app)
-    route_path_1 = BASE_DIR / "Imagen" / "route_label.csv"
-    # 2nd path: brain-tumor-detection/data repo (e.g. develop branch)
-    route_path_2 = BASE_DIR / "brain-tumor-detection" / "data" / "route_label.csv"
-
-    df_routes = None
-    used_path = None
-
-    # First attempt
-    try:
-        df_routes = pd.read_csv(route_path_1)
-        used_path = route_path_1
-    except FileNotFoundError:
-        # Second attempt
-        try:
-            df_routes = pd.read_csv(route_path_2)
-            used_path = route_path_2
-        except FileNotFoundError:
-            st.error(
-                "The file `route_label.csv` was not found in any of the paths:\n\n"
-                f"- `{route_path_1}`\n"
-                f"- `{route_path_2}`\n\n"
-                "Please check your folder structure or the repository branch."
-            )
-            return
-
-    # Drop index column if it exists
-    if "Unnamed: 0" in df_routes.columns:
-        df_routes = df_routes.drop(columns=["Unnamed: 0"])
-
-    st.caption(
-        f"Rows: {df_routes.shape[0]} · Columns: {df_routes.shape[1]}  "
-        f"· CSV loaded from: `{used_path}`"
-    )
-
-    tab_plots, tab_table = st.tabs(["📈 Plots","📄 Table"])
-
-
-
-
-    # ===== PLOTS =====
-    with tab_plots:
-        if "mask" not in df_routes.columns:
-            st.info("The CSV does not contain a `mask` column.")
-            return
-
-        st.subheader("Class distribution (0 = negative, 1 = positive)")
-
-        # 1) Count 0 and 1
-        class_counts = df_routes["mask"].value_counts().reset_index()
-        class_counts.columns = ["mask_value", "Number of images"]
-
-        # 2) Map to readable labels
-        class_counts["Class"] = class_counts["mask_value"].map({
-            0: "0 – Negative (no tumor)",
-            1: "1 – Positive (tumor present)",
-        })
-
-        # 3) Keep only the columns needed for the plot
-        class_counts = class_counts[["Class", "Number of images"]]
-
-        # 4) Pie chart
-        fig_pie = px.pie(
-            class_counts,
-            names="Class",
-            values="Number of images",
-            title="Class distribution: tumor vs no tumor",
-        )
-
-        # Center the chart using 3 columns
-        col1, col2, col3 = st.columns(3)
-        with col2:
-            st.plotly_chart(fig_pie, use_container_width=True)
-
-        # Global prevalence (image-level)
-        prevalence = df_routes["mask"].mean()
-        st.markdown(
-            f"**Global tumor prevalence (image level):** ≈ **{prevalence*100:.2f}%** "
-            "of the images are labelled as positive (`mask = 1`)."
-        )
-
-        # ===== TABLE =====
-        with tab_table:
-            st.subheader("Overview of `route_label.csv`")
-            st.dataframe(df_routes[df_routes.columns])
-    # =====================================================================
-    #  🔬 Scientific medical + data science interpretation
-    # =====================================================================
-    prevalence_global = df_routes["mask"].mean()
-    negative_pct = (1 - prevalence_global) * 100
-    positive_pct = prevalence_global * 100
-
-    st.markdown(f"""
-
-## 🧠 Scientific interpretation of the dataset
-
-### 1. Cohort composition (image-level class distribution)
-
-In this dataset:
-
-- **≈ {negative_pct:.1f}%** of MRI slices are labelled as  
-  **0 – Negative (no tumor)**  
-- **≈ {positive_pct:.1f}%** of MRI slices are labelled as  
-  **1 – Positive (tumor present)**  
-
-This yields an **image-level tumor prevalence of approximately {positive_pct:.1f}%**.
-
-From a methodological standpoint, this indicates a **moderately imbalanced dataset**, 
-with a dominant negative class and a substantial proportion of positive slices.  
-Therefore, **any classification model** must outperform a trivial baseline predicting 
-the majority class (≈ **{negative_pct:.1f}% accuracy**) to demonstrate meaningful discriminative value.
-
-
-
-### 2. Clinical and machine-learning implications
-
-- The enrichment in tumor-positive slices (≈ {positive_pct:.1f}%) is higher than in routine clinical cohorts, 
-  which usually contain far fewer tumors. This is advantageous for model development, as it provides a 
-  sufficient number of positive examples to learn tumor-related patterns and to train segmentation models.
-
-- Because of the moderate class imbalance, evaluation should not rely solely on accuracy. More informative metrics are:  
-  - **Sensitivity / recall** for positive cases (`mask = 1`)  
-  - **Specificity** for negative cases (`mask = 0`)  
-  - **AUC-ROC** and **AUC-PR**, which better capture performance under imbalance.
-
-- If the model tends to under-detect tumors, one may consider:  
-  - **Class-weighted loss functions**  
-  - **Focal loss**  
-  - **Oversampling of positive slices** or undersampling of negatives.
-
-
-### 3. Utility of the `mask` column
-
-Although voxel-wise segmentation masks are available via `mask_path`, the binary image-level label (`mask`) enables:
-
-- Rapid assessment of **class distribution** (as visualised in the pie chart).  
-- Training of a **binary tumor vs. no-tumor classifier** as a screening or pre-filtering stage.  
-- Stratified analyses, for example comparing intensity distributions or radiomic features between positive and negative slices.
-
-From a clinical research perspective, the cohort can be succinctly described as:
-
-> *"In this dataset, approximately {positive_pct:.1f}% of MRI slices contain visible tumor tissue according to expert segmentation. This prevalence establishes the baseline that any automated detection model must exceed in order to be clinically relevant."*
-
-""")
 
 
 
@@ -1168,7 +1059,8 @@ menu = [
         "🏠 Home",
         "📚 Introduction",
         "📂 Data Sources",
-        "📊🧠 Data Visualization",
+        "📊 Dataset Visualization",
+        "🧠 MRI Images Visualization",
         "🧬 Deep learning model",
         "🔍 Live prediction",
         "🎥 Visual demo",
@@ -1186,8 +1078,10 @@ elif choice == "📚 Introduction":
     page_intro()
 elif choice ==  "📂 Data Sources":  
     page_sources()
-elif choice == "📊🧠 Data Visualization":
+elif choice == "📊 Dataset Visualization":
     page_data()
+elif choice == "🧠 MRI Images Visualization":
+    page_cases()
 elif choice == "🧬 Deep learning model":
     page_model()
 elif choice == "🔍 Live prediction":
