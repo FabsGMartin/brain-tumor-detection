@@ -535,56 +535,98 @@ def page_cases():
 
 def page_model():
     st.header("🧬 Deep learning model")
-    st.markdown('<h5 style="text-align: center;color: black;"> <b> General Pipeline </b></h5>',unsafe_allow_html=True)
-    st.image(IMAGES_DIR / "general_pipeline.png" ,use_container_width=True)
-    st.markdown("## ResNet-50 Architecture")
+    st.markdown('<br></br> <h3 style="text-align: center;color: black;"> <b> General Pipeline </b></h3>',unsafe_allow_html=True)
+    a,b,c=st.columns(3)
+    with b:
+        st.image(IMAGES_DIR / "general_pipeline.png" ,use_container_width=True)
+    st.markdown('<br></br> <h3 style="text-align: center;color: black;"> <b> ResNet-50 Classification Model Architecture </b></h3>',unsafe_allow_html=True)
     st.markdown(
         """
-        Our medical AI system is based on a **deep learning model** that operates on
-        brain MRI slices.
+For the classification stage of this project, we use **ResNet-50**, a deep convolutional neural network introduced in the paper [*“Deep Residual Learning for Image Recognition”* (He et al., 2015)](https://arxiv.org/pdf/1512.03385.pdf).
 
-        At a high level, the pipeline is:
+ResNet-50 belongs to the family of **Residual Networks (ResNets)**, whose key innovation is the use of **residual (skip) connections**. These connections allow the model to learn residual functions instead of full mappings, which solves two major problems of very deep networks: vanishing gradients and training degradation.
 
-        1. **Input**: MRI image (normalized and resized).
-        2. **Neural network** (e.g. U-Net or CNN):
-           - Extracts visual patterns (edges, textures, hyperintense regions...).
-           - Learns to distinguish between healthy tissue and tumor tissue.
-        3. **Output**:
-           - A **class prediction**: tumor / no tumor.
-           - Optionally, a **segmentation mask** highlighting tumor pixels.
-        """
-    )
+A typical residual block applies several convolutional layers to the input and then adds the original input back to the block output:
 
-    st.markdown(
-        """
-        Although this demo focuses on 2D slices, many research systems work with:
-        - **3D convolutions**, which exploit volumetric context across slices.
-        - **Multi-sequence input** (T1, T1+contrast, T2, FLAIR) stacked as channels.
-        - **Multimodal fusion**, combining imaging with clinical variables
-          (age, performance status, molecular markers) or even genomics.
-        This richer input can improve performance for tasks such as grading or prognosis.
-        """
-    )
+output = F(x) + x
 
-    st.markdown("## Training (summary)")
-    st.markdown(
-        """
-        - **Data**: MRI dataset with tumor annotations.
-        - **Labels**:
-          - For classification: `0` = no tumor, `1` = tumor.
-          - For segmentation: masks where each pixel indicates tumor/no tumor.
-        - **Procedure**:
-          - Split into *train / validation / test*.
-          - Train for several epochs minimizing a loss function
-            (for example, *Binary Cross-Entropy* for classification or
-            *Dice loss* for segmentation).
-        - **Typical metrics**:
-          - Classification: accuracy, F1, sensitivity, specificity.
-          - Segmentation: Dice coefficient, IoU.
-        """
-    )
+This design helps preserve gradient flow and stabilizes training when the network is very deep.   
+- Architecturally, ResNet-50 consists of 50 layers arranged in several stages. It uses a “bottleneck” block structure: a 1×1 convolution to reduce dimensionality, a 3×3 convolution, and another 1×1 convolution to restore dimensionality — allowing efficient parameter usage while maintaining depth.
+- Thanks to its design, ResNet-50 has proven extremely effective in large-scale image recognition tasks (e.g. ImageNet), and has become a standard backbone for many computer vision tasks, including medical image analysis.
 
-    st.markdown("## Data preprocessing and quality control")
+In our context, classification (or feature extraction) over MRI images of low-grade gliomas, ResNet-50 gives us a robust, well-tested backbone: its residual learning capability helps with training stability, even with relatively deep layers; its feature representations are rich and suitable for transfer learning and fine-tuning on medical data; and its architecture is widely accepted in literature, which helps with reproducibility and comparability of our results.
+
+<br></br>
+
+ <div style="text-align: center;">
+
+![](https://www.researchgate.net/profile/Master-Prince/publication/350421671/figure/fig1/AS:1005790324346881@1616810508674/An-illustration-of-ResNet-50-layers-architecture.png)
+
+ </div>
+
+ <br></br>
+<br></br> <h3 style="text-align: center;color: black;"> <b> ResUNet Segmentation Model Architecture </b></h3>
+ 
+
+Building upon the concepts previously introduced with **ResNet-50**, ResUNet represents a natural evolution of deep convolutional networks for image segmentation tasks. While ResNet-50 demonstrated how *residual connections* enable the training of very deep models by facilitating stable gradient flow, ResUNet integrates these same principles into the classic **U-Net encoder–decoder structure**, creating a model that is both deep and highly effective at capturing fine-grained spatial information. The ResUNet Architecture was first described in [Z. Zhang et al. 2017](https://arxiv.org/pdf/1711.10684.pdf)
+
+
+##### **How ResUNet Extends the Ideas of ResNet-50?**
+
+ResUNet incorporates *residual blocks* throughout its architecture, mirroring the philosophy behind ResNet-50:
+
+- Residual connections allow the model to learn identity mappings more easily.
+- They reduce vanishing gradients and support deeper, more expressive feature extractors.
+- They promote efficient training, especially when datasets are limited.
+
+By embedding these residual blocks inside the U-Net structure, ResUNet achieves a strong balance between **feature depth** and **spatial precision**, which is crucial for segmentation tasks.
+
+
+##### **Core Components of the ResUNet Architecture**
+
+1. **Encoder with Residual Blocks**  
+   The encoder operates similarly to ResNet-style feature extraction. Each stage includes residual convolutional blocks that progressively downsample the spatial resolution while increasing feature richness. These blocks stabilize training and enable the model to capture high-level semantics.
+
+2. **Bottleneck Layer**  
+   At the deepest level, the network aggregates global context. Residual connections continue to support gradient flow even at this highly compressed representation.
+
+3. **Decoder with Skip Connections**  
+   The decoder mirrors the encoder but performs upsampling to recover spatial structure. Standard U-Net skip connections bridge encoder and decoder levels, ensuring the model retains fine details lost during downsampling.
+
+4. **Residual Refinement**  
+   Each decoder stage incorporates residual blocks, allowing the model to refine and correct features as they are upsampled. This combination of residual learning + multi-scale fusion is one of the key strengths of ResUNet.
+
+5. **Final Segmentation Layer**  
+   A final convolutional layer maps the decoded features to pixel-wise class probabilities, producing a dense segmentation mask.
+
+<br></br>
+
+ <div style="text-align: center;">
+
+![](https://idiotdeveloper.com/wp-content/uploads/2021/02/arch.png)
+
+</div>
+
+<br></br>
+
+##### **Why ResUNet Is Effective for Segmentation?**
+
+ResUNet is particularly advantageous because it unifies:
+
+- **Deep semantic feature extraction** (thanks to residual blocks, much like in ResNet-50)
+- **Precise spatial localization** (enabled by the U-Net skip connections)
+- **Stable and efficient training**, even with limited data
+- **Flexibility in depth and complexity**, allowing adaptations for various modalities (e.g., medical imaging, remote sensing)
+
+This makes ResUNet a powerful architecture for tasks where accurate object boundaries and contextual understanding are both essential.
+
+
+
+        """,unsafe_allow_html=True)
+
+
+
+    st.markdown('<br></br> <h3 style="text-align: center;color: black;"> <b> Data preprocessing and quality control </b></h3>',unsafe_allow_html=True)
     st.markdown(
         """
         Before training any medical imaging model, a robust preprocessing pipeline is essential:
@@ -598,23 +640,46 @@ def page_model():
         to exclude corrupted or mislabeled scans.
         """
     )
-
-    st.markdown("## Evaluation and clinical interpretation")
+    
+    st.markdown('<br></br> <h4 style="text-align: center;color: black;"> <b> Training (summary) </b></h4>',unsafe_allow_html=True)
     st.markdown(
         """
-        Beyond global metrics, clinicians and data scientists typically:
-        - Inspect **ROC and precision-recall curves** to select thresholds that balance
-          sensitivity (avoiding missed tumors) and specificity (avoiding unnecessary alarms).
-        - Use **calibration curves** to verify that predicted probabilities correspond
-          to actual risk, which is crucial when communicating risk to patients.
-        - Analyze **confusion matrices** stratified by subgroups (age, sex, scanner type,
-          tumor location) to detect potential bias.
-        - Compare performance with human experts in **reader studies** and investigate
-          cases where the model disagrees with the radiologist.
-        - Perform **external validation** on data from other hospitals to test
-          generalization beyond the training cohort.
+        - **Data**: MRI dataset with tumor annotations.
+        - **Labels**:
+          - For classification: `0` = no tumor, `1` = tumor.
+          - For segmentation: masks where each pixel indicates tumor/no tumor.
+        - **Procedure**:
+          - Split into *train / validation / test*.
+          - Train for several epochs minimizing a loss function
+            (*Binary Cross-Entropy (BCE) * for classification or
+            *Dice-BCE loss* for segmentation).
+        - **Metrics**:
+          - Classification: accuracy, F1, precision and recall scores.
+          - Segmentation: dice coefficient, intersection over union, accuracy.
         """
     )
+
+    st.markdown('<br></br> <h3 style="text-align: center;color: black;"> <b> Model Evaluation </b></h3>',unsafe_allow_html=True)
+    st.markdown(
+        """
+
+        """
+    )
+    a,b,c,d,e,f,g=st.columns(7,gap="medium",vertical_alignment= "center")
+
+
+    with a:
+        with st.container(border=True):
+            st.metric("Accuracy","98.6%")
+    with b:
+        with st.container(border=True):
+            st.metric("Precision","97.8%")
+    with c:
+        with st.container(border=True):
+            st.metric("Recall","97.8%")
+    with d:
+        with st.container(border=True):
+            st.metric("F1 score","97.8%")
 
     st.markdown("## Integration with Flask")
     st.info(
@@ -637,7 +702,7 @@ def page_model():
     st.markdown(
         """
         In a production setting, this architecture would be complemented with:
-        - **Authentication and audit logs** to track who requested each prediction.
+        - **Audit logs** to track who requested each prediction.
         - **Versioning** of models and training datasets to ensure reproducibility.
         - **Monitoring** of latency, error rates and data drift to detect when
           the model may need to be re-evaluated or retrained.
@@ -674,8 +739,7 @@ def page_live_prediction():
         """
         Upload an MRI image and the system will query the **deep learning model**
         deployed in Flask to predict whether there is a tumor or not.
-        """
-    )
+        """)
 
     st.markdown(
         """
