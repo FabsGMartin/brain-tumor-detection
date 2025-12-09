@@ -4,11 +4,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from PIL import Image
-import datetime
+from pathlib import Path
+#import datetime
 import requests
 import base64
 import io
 import numpy as np
+import random
+
 
 # ---------- PAGE CONFIGURATION ----------
 
@@ -57,6 +60,10 @@ st.markdown(
 
 df = pd.read_csv("../data/route_label.csv")
 df_tumors =  pd.read_csv("../data/segmentation_routes_labels.csv")
+
+BASE_DIR = Path(__file__).resolve().parent
+IMAGES_DIR = BASE_DIR / "Imagen"
+
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
     pil_image = pil_image.convert("RGB")
@@ -309,6 +316,352 @@ def page_data():
                 "or the class distribution."
             )
 
+def page_cases(): 
+    st.header("🖼️ Ejemplos de tumores cerebrales en RM")
+
+    st.markdown(
+        """
+        Aquí mostramos cortes de **resonancia magnética cerebral** con y sin **tumor segmentado**.
+        En cada ejemplo verás:
+
+        1. **RM original**  
+        2. **Máscara binaria del tumor** (blanco = tumor, negro = fondo)  
+        3. **RM con la máscara superpuesta** (solo en los casos con tumor)
+        """
+    )
+
+    rows_dir = IMAGES_DIR
+
+    # ------------------ CASOS CON TUMOR (row_*.png) ------------------
+    tumor_rows = sorted(rows_dir.glob("row_*.png"))
+
+    # ------------------ CASOS SIN TUMOR (example_no_tumor*.png) ------------------
+    no_tumor_rows = sorted(rows_dir.glob("example_no_tumor*.png"))
+
+    if not tumor_rows and not no_tumor_rows:
+        st.error(
+            "No se han encontrado imágenes ni `row_*.png` (con tumor) "
+            "ni `example_no_tumor*.png` (sin tumor) en la carpeta "
+            f"`{rows_dir}`."
+        )
+        return
+
+    # =========================
+    # Contenedor central
+    # =========================
+    left_empty, center, right_empty = st.columns([1, 4, 1])
+    with center:
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Primero SIN tumor, luego CON tumor
+        tipo = st.radio(
+            "Selecciona tipo de caso",
+            ("🟢 Sin tumor", "🔴 Con tumor"),
+            horizontal=True,
+            index=0,
+        )
+
+        if tipo == "🔴 Con tumor":
+            active_rows = tumor_rows
+            state_key = "random_row_idx_tumor"
+            boton_texto = "🔀 Mostrar otro caso con tumor"
+            titulo_prefix = "Caso"
+            subtitulo_suffix = "tumor cerebral segmentado"
+        else:
+            active_rows = no_tumor_rows
+            state_key = "random_row_idx_no_tumor"
+            boton_texto = "🔀 Mostrar otro caso sano"
+            titulo_prefix = "Caso sano"
+            subtitulo_suffix = "RM sin tumor visible"
+
+        if not active_rows:
+            if tipo == "🔴 Con tumor":
+                st.warning(
+                    "No hay imágenes `row_*.png` para casos con tumor.\n"
+                    "Asegúrate de que `row_01.png`, `row_02.png`, ... están en la carpeta Imagen."
+                )
+            else:
+                st.warning(
+                    "No hay imágenes `example_no_tumor*.png` para casos sin tumor.\n"
+                    "Coloca archivos como `example_no_tumor.png`, "
+                    "`example_no_tumor2.png`, ... en la carpeta Imagen."
+                )
+            return
+
+        if state_key not in st.session_state:
+            st.session_state[state_key] = 0
+
+        # Botón centrado
+        bc1, bc2, bc3 = st.columns([1, 2, 1])
+        with bc2:
+            if st.button(boton_texto):
+                st.session_state[state_key] = random.randrange(len(active_rows))
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        current_idx = st.session_state[state_key]
+        current_path = active_rows[current_idx]
+
+        stem = current_path.stem
+        num_part = "".join(ch for ch in stem if ch.isdigit())
+        case_number = num_part if num_part else "–"
+
+        st.markdown(
+            f"<h3 style='text-align:center'>{titulo_prefix} {case_number}: {subtitulo_suffix}</h3>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # =========================
+        # Mostrar imágenes
+        # =========================
+        if tipo == "🔴 Con tumor":
+            # fila row_XX con 3 columnas en una misma imagen
+            img_row = Image.open(current_path)
+            w, h = img_row.size
+            col_w = w // 3
+
+            img_mri      = img_row.crop((0,        0, col_w,   h))
+            img_mask     = img_row.crop((col_w,    0, 2*col_w, h))
+            img_mri_mask = img_row.crop((2*col_w,  0, w,       h))
+
+            c1, c2, c3 = st.columns(3)
+
+            with c1:
+                st.markdown(
+                    "<h5 style='text-align:center'>RM original</h5>",
+                    unsafe_allow_html=True,
+                )
+                st.image(img_mri, use_column_width=True)
+
+            with c2:
+                st.markdown(
+                    "<h5 style='text-align:center'>Máscara de tumor</h5>",
+                    unsafe_allow_html=True,
+                )
+                st.image(img_mask, use_column_width=True)
+
+            with c3:
+                st.markdown(
+                    "<h5 style='text-align:center'>RM con máscara</h5>",
+                    unsafe_allow_html=True,
+                )
+                st.image(img_mri_mask, use_column_width=True)
+
+ 
+            st.markdown(
+                """
+                #### Clinical / data analyst interpretation (with tumor)
+
+                - **Region of interest:** a focal hyperintense lesion is visible within the brain
+                  parenchyma. The binary mask highlights all pixels classified as tumor.
+                - **Segmentation concept:** every white pixel in the mask corresponds to voxels
+                  that the model (or the manual annotation) considers part of the tumor.
+                - **Visual benefit:** the overlaid image makes it easier to appreciate tumor
+                  borders, mass effect and relationship to surrounding tissue.
+                - **From a data point of view:** this slice would be labelled as a **positive
+                  sample**, and the mask provides dense supervision for training segmentation
+                  models (Dice, IoU, pixel-wise accuracy, etc.).
+                """
+            )
+
+        else:
+            # ejemplo sin tumor: una única RM; la máscara está ya implícita (vacía)
+            img_mri = Image.open(current_path).convert("RGB")
+
+            # Pequeño toggle de vista, pero la imagen es la misma
+            vista = st.radio(
+                "Vista del caso sano",
+                ("🧼 Ver RM sin máscara", "🧼 Ver RM con máscara (sin tumor)"),
+                horizontal=True,
+                key="vista_sano",
+            )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if vista == "🧼 Ver RM sin máscara":
+                st.markdown(
+                    "<h5 style='text-align:center'>RM original (sin tumor)</h5>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    "<h5 style='text-align:center'>RM con máscara (máscara vacía)</h5>",
+                    unsafe_allow_html=True,
+                )
+
+            # En ambos casos se muestra la misma imagen, porque no hay tumor
+            st.image(img_mri, use_column_width=False)
+
+            # 🧼 Descripción clínico–analítica en inglés (sin tumor)
+            st.markdown(
+                """
+                #### Clinical / data analyst interpretation (no visible tumor)
+
+                - **Overall impression:** normal-appearing brain MRI for this slice, with
+                  no focal mass, no clear edema pattern and preserved global symmetry.
+                - **Segmentation point of view:** this is a **negative sample**; the
+                  corresponding mask is empty, meaning no pixels are labelled as tumor.
+                - **Why it matters for the model:** negative cases are crucial to reduce
+                  false positives and to teach the network what healthy anatomy looks like.
+                - **Expected behavior:** the model should assign low tumor probability to
+                  all pixels in this image. Any high activation here would be a potential
+                  false positive.
+                """
+            )
+
+
+def page_dataset():  
+    st.header("📊 Dataset analysis")
+
+    # 1st path: Imagen folder (current app)
+    route_path_1 = BASE_DIR / "Imagen" / "route_label.csv"
+    # 2nd path: brain-tumor-detection/data repo (e.g. develop branch)
+    route_path_2 = BASE_DIR / "brain-tumor-detection" / "data" / "route_label.csv"
+
+    df_routes = None
+    used_path = None
+
+    # First attempt
+    try:
+        df_routes = pd.read_csv(route_path_1)
+        used_path = route_path_1
+    except FileNotFoundError:
+        # Second attempt
+        try:
+            df_routes = pd.read_csv(route_path_2)
+            used_path = route_path_2
+        except FileNotFoundError:
+            st.error(
+                "The file `route_label.csv` was not found in any of the paths:\n\n"
+                f"- `{route_path_1}`\n"
+                f"- `{route_path_2}`\n\n"
+                "Please check your folder structure or the repository branch."
+            )
+            return
+
+    # Drop index column if it exists
+    if "Unnamed: 0" in df_routes.columns:
+        df_routes = df_routes.drop(columns=["Unnamed: 0"])
+
+    st.caption(
+        f"Rows: {df_routes.shape[0]} · Columns: {df_routes.shape[1]}  "
+        f"· CSV loaded from: `{used_path}`"
+    )
+
+    tab_plots, tab_table = st.tabs(["📈 Plots","📄 Table"])
+
+
+
+
+    # ===== PLOTS =====
+    with tab_plots:
+        if "mask" not in df_routes.columns:
+            st.info("The CSV does not contain a `mask` column.")
+            return
+
+        st.subheader("Class distribution (0 = negative, 1 = positive)")
+
+        # 1) Count 0 and 1
+        class_counts = df_routes["mask"].value_counts().reset_index()
+        class_counts.columns = ["mask_value", "Number of images"]
+
+        # 2) Map to readable labels
+        class_counts["Class"] = class_counts["mask_value"].map({
+            0: "0 – Negative (no tumor)",
+            1: "1 – Positive (tumor present)",
+        })
+
+        # 3) Keep only the columns needed for the plot
+        class_counts = class_counts[["Class", "Number of images"]]
+
+        # 4) Pie chart
+        fig_pie = px.pie(
+            class_counts,
+            names="Class",
+            values="Number of images",
+            title="Class distribution: tumor vs no tumor",
+        )
+
+        # Center the chart using 3 columns
+        col1, col2, col3 = st.columns(3)
+        with col2:
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        # Global prevalence (image-level)
+        prevalence = df_routes["mask"].mean()
+        st.markdown(
+            f"**Global tumor prevalence (image level):** ≈ **{prevalence*100:.2f}%** "
+            "of the images are labelled as positive (`mask = 1`)."
+        )
+
+        # ===== TABLE =====
+        with tab_table:
+            st.subheader("Overview of `route_label.csv`")
+            st.dataframe(df_routes[df_routes.columns])
+    # =====================================================================
+    #  🔬 Scientific medical + data science interpretation
+    # =====================================================================
+    prevalence_global = df_routes["mask"].mean()
+    negative_pct = (1 - prevalence_global) * 100
+    positive_pct = prevalence_global * 100
+
+    st.markdown(f"""
+
+## 🧠 Scientific interpretation of the dataset
+
+### 1. Cohort composition (image-level class distribution)
+
+In this dataset:
+
+- **≈ {negative_pct:.1f}%** of MRI slices are labelled as  
+  **0 – Negative (no tumor)**  
+- **≈ {positive_pct:.1f}%** of MRI slices are labelled as  
+  **1 – Positive (tumor present)**  
+
+This yields an **image-level tumor prevalence of approximately {positive_pct:.1f}%**.
+
+From a methodological standpoint, this indicates a **moderately imbalanced dataset**, 
+with a dominant negative class and a substantial proportion of positive slices.  
+Therefore, **any classification model** must outperform a trivial baseline predicting 
+the majority class (≈ **{negative_pct:.1f}% accuracy**) to demonstrate meaningful discriminative value.
+
+
+
+### 2. Clinical and machine-learning implications
+
+- The enrichment in tumor-positive slices (≈ {positive_pct:.1f}%) is higher than in routine clinical cohorts, 
+  which usually contain far fewer tumors. This is advantageous for model development, as it provides a 
+  sufficient number of positive examples to learn tumor-related patterns and to train segmentation models.
+
+- Because of the moderate class imbalance, evaluation should not rely solely on accuracy. More informative metrics are:  
+  - **Sensitivity / recall** for positive cases (`mask = 1`)  
+  - **Specificity** for negative cases (`mask = 0`)  
+  - **AUC-ROC** and **AUC-PR**, which better capture performance under imbalance.
+
+- If the model tends to under-detect tumors, one may consider:  
+  - **Class-weighted loss functions**  
+  - **Focal loss**  
+  - **Oversampling of positive slices** or undersampling of negatives.
+
+
+### 3. Utility of the `mask` column
+
+Although voxel-wise segmentation masks are available via `mask_path`, the binary image-level label (`mask`) enables:
+
+- Rapid assessment of **class distribution** (as visualised in the pie chart).  
+- Training of a **binary tumor vs. no-tumor classifier** as a screening or pre-filtering stage.  
+- Stratified analyses, for example comparing intensity distributions or radiomic features between positive and negative slices.
+
+From a clinical research perspective, the cohort can be succinctly described as:
+
+> *"In this dataset, approximately {positive_pct:.1f}% of MRI slices contain visible tumor tissue according to expert segmentation. This prevalence establishes the baseline that any automated detection model must exceed in order to be clinically relevant."*
+
+""")
+
+
+
+ 
 def page_cases():
     st.header("📊🧠 Data Visualization")
 
