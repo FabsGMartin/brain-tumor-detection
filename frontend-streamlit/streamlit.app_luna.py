@@ -535,20 +535,9 @@ def page_cases():
 
 def page_model():
     st.header("🧬 Deep learning model")
-    st.markdown(
-        """
-        In a real hospital workflow, such a model would typically act as a
-        **decision-support tool** or “second reader”. It can:
-        - Highlight suspicious regions that deserve closer inspection.
-        - Provide quantitative measurements (e.g. tumor volume).
-        - Help standardize reports across radiologists.
-        Final responsibility for diagnosis and treatment decisions always remains
-        with the clinical team.
-
-        """
-    )
-
-    st.markdown("## General architecture")
+    st.markdown('<h5 style="text-align: center;color: black;"> <b> General Pipeline </b></h5>',unsafe_allow_html=True)
+    st.image(IMAGES_DIR / "general_pipeline.png" ,use_container_width=True)
+    st.markdown("## ResNet-50 Architecture")
     st.markdown(
         """
         Our medical AI system is based on a **deep learning model** that operates on
