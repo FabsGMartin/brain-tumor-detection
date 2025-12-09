@@ -48,8 +48,8 @@ LABELS = ["No detectado (0)", "Detectado(1)"]
 DB_FILE = "hospital_data.db"
 
 # Modelos
-MODEL_CLASIFICACION = '../models/classifier-resnet-model9.keras'
-MODEL_SEGMENTACION = '../models/segmentation_ResUNet6.keras'
+MODEL_CLASIFICACION = '../models/classifier-resnet-model-final.keras'
+MODEL_SEGMENTACION = '../models/segmentation_ResUNet_final.keras'
 
 model_clasificacion = None
 model_segmentacion = None
@@ -133,6 +133,9 @@ def mask_to_base64(mask):
     mask_img.save(buffer, format='PNG')
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode('utf-8')
+
+
+
 
 
 # ENDPOINTS
@@ -255,6 +258,9 @@ def clasificacion_predict_random():
 
 
 # SEGMENTACIÓN
+# #  pred_mask = (pred_mask > 0.5).astype(np.uint8)
+#   plt.imshow(pred_mask, cmap='gray')
+#   plt.axis('off')
 
 @app.route("/segmentacion/predict", methods=["GET", "POST"])
 def segmentacion_predict():
