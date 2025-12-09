@@ -1,14 +1,30 @@
-#-----------LIBRARIES LOADING-------------
+# -----------LIBRARIES LOADING-------------
 
-import streamlit as st  
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 from PIL import Image
+from pathlib import Path
 import datetime
 import requests
 import base64
 import io
 import numpy as np
+
+# ---------- PATH CONSTANTS ----------
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR.parent / "data"
+IMAGES_DIR = BASE_DIR / "img"
+VIDEO_PATH = BASE_DIR / "video.mp4"
+TEAM_IMAGES_DIR = BASE_DIR / "images" / "team"
+
+# CSV files
+ROUTES_LABEL_CSV = DATA_DIR / "routes_label.csv"
+SEGMENTATION_ROUTES_LABELS_CSV = DATA_DIR / "segmentation_routes_labels.csv"
+
+# Image files
+KAGGLE_IMAGE = IMAGES_DIR / "kaggle.png"
+TCIA_IMAGE = IMAGES_DIR / "TCIA.png"
 
 # ---------- PAGE CONFIGURATION ----------
 
@@ -16,13 +32,13 @@ st.set_page_config(
     page_title="Brain MRI Tumor Detection",
     page_icon="🧠",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
 # ---------- CUSTOM CSS STYLING ----------
 
 st.markdown(
-"""
+    """
     <style>
     /* Highlight analysis box */
     .highlight-box {
@@ -36,13 +52,15 @@ st.markdown(
     }
 
     </style>
-    """
-  ,unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
-#-----------DATAFRAME AND MODEL LOADING-------------
+# -----------DATAFRAME AND MODEL LOADING-------------
 
-df_routes_label = pd.read_csv("../data/routes_label.csv")
-df_tumors =  pd.read_csv("../data/segmentation_routes_labels.csv")
+df_routes_label = pd.read_csv(str(ROUTES_LABEL_CSV))
+df_tumors = pd.read_csv(str(SEGMENTATION_ROUTES_LABELS_CSV))
+
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
     pil_image = pil_image.convert("RGB")
@@ -54,25 +72,24 @@ def call_flask_model(api_url: str, pil_image: Image.Image):
 
     url = api_url.rstrip("/") + "/predict"
 
-    resp = requests.post(
-        url,
-        json={"image_base64": img_b64},
-        timeout=60
-    )
+    resp = requests.post(url, json={"image_base64": img_b64}, timeout=60)
     resp.raise_for_status()
     return resp.json()
+
 
 def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
     mask_bytes = base64.b64decode(mask_b64)
     mask_img = Image.open(io.BytesIO(mask_bytes))
     return np.array(mask_img)
 
+
 def page_home():
     st.markdown("")
 
+
 def page_intro():
     st.header("🧠 Brain tumor detection and segmentation")
-    
+
     st.error(
         "- Around 80% of people living with a brain tumor require neurorehabilitation.\n"
         "- In Spain, more than 5,000 new brain tumor cases are diagnosed every year.\n"
@@ -122,6 +139,7 @@ def page_intro():
         motivations for using deep learning in neuro-oncology.
         """
     )
+
 
 def page_model():
     st.header("🧬 Deep learning model")
@@ -268,38 +286,42 @@ def page_model():
 
 
 def page_sources():
-    st.markdown('''
+    st.markdown("""
     ## Dataset Description — LGG MRI Segmentation
 
     The **LGG MRI Segmentation** dataset comes from the TCGA-LGG collection hosted on [*The Cancer Imaging Archive (TCIA)*](https://www.cancerimagingarchive.net/collection/tcga-lgg/) and was curated and released on [Kaggle by Mateusz Buda](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation/data). It contains MRI scans of patients diagnosed with **low-grade gliomas**, along with expert-annotated **tumor segmentation masks**.
 
     ### Key Characteristics
-    - **Patients:** ~110  
-    - **Total images:** ~3,900 MRI slices  
-    - **Modalities:** Multi-channel `.tif` images (commonly including FLAIR and contrast variations)  
-    - **Annotations:** Single-channel masks marking the tumor region  
-    - **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks  
+    - **Patients:** ~110
+    - **Total images:** ~3,900 MRI slices
+    - **Modalities:** Multi-channel `.tif` images (commonly including FLAIR and contrast variations)
+    - **Annotations:** Single-channel masks marking the tumor region
+    - **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks
 
     ### Why It’s Useful for Brain Tumor Segmentation
-    - Provides **reliable ground-truth labels** for supervised learning.  
-    - Includes **multiple slices per patient**, giving models diverse anatomical variation.  
+    - Provides **reliable ground-truth labels** for supervised learning.
+    - Includes **multiple slices per patient**, giving models diverse anatomical variation.
 
-    ''')
+    """)
 
-    col1, col2, col3,col4,col5 = st.columns([2,5,2,5,2],gap="large",vertical_alignment="center")
+    col1, col2, col3, col4, col5 = st.columns(
+        [2, 5, 2, 5, 2], gap="large", vertical_alignment="center"
+    )
     with col2:
         with st.container(border=True):
-            st.image("./img/kaggle.png",use_container_width=True)
+            st.image(str(KAGGLE_IMAGE), use_container_width=True)
     with col4:
         with st.container(border=True):
-            st.image("./img/TCIA.png",use_container_width=True)
-                
+            st.image(str(TCIA_IMAGE), use_container_width=True)
+
 
 def page_dataset():
     st.header("📊 Database analysis")
 
     if df.empty:
-        st.error("`data.csv` was not found. Place it next to `app.py` and reload the page.")
+        st.error(
+            "`data.csv` was not found. Place it next to `app.py` and reload the page."
+        )
         return
 
     st.caption(f"Rows: {df.shape[0]} · Columns: {df.shape[1]}")
@@ -336,7 +358,7 @@ def page_dataset():
             df_count,
             values="count",
             names=GENDER_COL,
-            title="Distribution of patients by gender"
+            title="Distribution of patients by gender",
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -349,14 +371,16 @@ def page_dataset():
         if TUMOR_COL in df.columns:
             st.markdown("### Tumor probability by gender")
 
-            df_avg = df.groupby(GENDER_COL)[TUMOR_COL].mean().reset_index(name="Tumor_Prob")
+            df_avg = (
+                df.groupby(GENDER_COL)[TUMOR_COL].mean().reset_index(name="Tumor_Prob")
+            )
 
             fig_bar = px.bar(
                 df_avg,
                 x=GENDER_COL,
                 y="Tumor_Prob",
                 title="Average tumor probability by gender",
-                labels={"Tumor_Prob": "Tumor probability"}
+                labels={"Tumor_Prob": "Tumor probability"},
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -374,7 +398,7 @@ def page_dataset():
             if len(prob_sel) > 0:
                 st.success(
                     f"Estimated average tumor probability for **{sel_gender}**: "
-                    f"**{prob_sel[0]*100:.2f}%**"
+                    f"**{prob_sel[0] * 100:.2f}%**"
                 )
 
             st.markdown("### Global class distribution (tumor vs no tumor)")
@@ -387,7 +411,7 @@ def page_dataset():
                 x="Class",
                 y="Count",
                 title="Number of patients per class (0 = no tumor, 1 = tumor)",
-                text="Count"
+                text="Count",
             )
             st.plotly_chart(fig_bool, use_container_width=True)
 
@@ -402,7 +426,8 @@ def page_dataset():
                 "or the class distribution."
             )
 
-def page_cases(): 
+
+def page_cases():
     st.header("🖼️ Ejemplos de tumores cerebrales en RM")
 
     st.markdown(
@@ -410,8 +435,8 @@ def page_cases():
         Aquí mostramos cortes de **resonancia magnética cerebral** con y sin **tumor segmentado**.
         En cada ejemplo verás:
 
-        1. **RM original**  
-        2. **Máscara binaria del tumor** (blanco = tumor, negro = fondo)  
+        1. **RM original**
+        2. **Máscara binaria del tumor** (blanco = tumor, negro = fondo)
         3. **RM con la máscara superpuesta** (solo en los casos con tumor)
         """
     )
@@ -432,9 +457,8 @@ def page_cases():
         )
         return
 
-  
     # ------------------Contenedor central------------------
-    
+
     left_empty, center, right_empty = st.columns([1, 4, 1])
     with center:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -498,18 +522,17 @@ def page_cases():
         )
         st.markdown("<br>", unsafe_allow_html=True)
 
-       
         # ------------------Mostrar imágenes------------------
-        
+
         if tipo == "🔴 Con tumor":
             # fila row_XX con 3 columnas en una misma imagen
             img_row = Image.open(current_path)
             w, h = img_row.size
             col_w = w // 3
 
-            img_mri      = img_row.crop((0,        0, col_w,   h))
-            img_mask     = img_row.crop((col_w,    0, 2*col_w, h))
-            img_mri_mask = img_row.crop((2*col_w,  0, w,       h))
+            img_mri = img_row.crop((0, 0, col_w, h))
+            img_mask = img_row.crop((col_w, 0, 2 * col_w, h))
+            img_mri_mask = img_row.crop((2 * col_w, 0, w, h))
 
             c1, c2, c3 = st.columns(3)
 
@@ -534,7 +557,6 @@ def page_cases():
                 )
                 st.image(img_mri_mask, use_column_width=True)
 
-            
             st.markdown(
                 """
                 #### Clinical / data analyst interpretation (with tumor)
@@ -619,14 +641,16 @@ def page_cases():
 
 def page_media():
     st.header("🎥 Visual demo and appointment")
-    
+
     st.subheader("Demo video of the app / model")
     try:
-        with open("video.mp4", "rb") as video_file:
+        with open(str(VIDEO_PATH), "rb") as video_file:
             video_bytes = video_file.read()
         st.video(video_bytes)
     except Exception:
-        st.info("Place a `video.mp4` file next to `app.py` or update the path in the code.")
+        st.info(
+            f"Place a `video.mp4` file at `{VIDEO_PATH}` or update the path in the code."
+        )
 
     st.markdown(
         """
@@ -646,8 +670,8 @@ def page_team():
     st.markdown(
         """
         This work has been developed by a multidisciplinary team of students
-        in Data Science and backend development.  
-        
+        in Data Science and backend development.
+
         Below you can see our profiles and GitHub links.
         """
     )
@@ -663,14 +687,15 @@ def page_team():
         """
     )
 
+
 def page_team():
     st.header("👥 Project team")
 
     st.markdown(
         """
         This work has been developed by a multidisciplinary team of students
-        in Data Science and backend development.  
-        
+        in Data Science and backend development.
+
         Below you can see our profiles and GitHub links.
         """
     )
@@ -679,39 +704,39 @@ def page_team():
         {
             "name": "Luna Pérez",
             "github": "https://github.com/LunaPerezT",
-            "photo": "images/team/miembro1.jpg"
+            "photo": str(TEAM_IMAGES_DIR / "miembro1.jpg"),
         },
         {
             "name": "Raquel Hernández",
             "github": "https://github.com/RaquelH18",
-            "photo": "images/team/miembro2.jpg"
+            "photo": str(TEAM_IMAGES_DIR / "miembro2.jpg"),
         },
         {
             "name": "Marcos Marín",
             "github": "https://github.com/mmarin3011-cloud",
-            "photo": "images/team/miembro3.jpg"
+            "photo": str(TEAM_IMAGES_DIR / "miembro3.jpg"),
         },
         {
             "name": "Fabián G. Martín",
             "github": "https://github.com/FabsGMartin",
-            "photo": "images/team/miembro4.jpg"
+            "photo": str(TEAM_IMAGES_DIR / "miembro4.jpg"),
         },
         {
             "name": "Miguel J. de la Torre",
             "github": "https://github.com/migueljdlt",
-            "photo": "images/team/miembro5.jpg"
+            "photo": str(TEAM_IMAGES_DIR / "miembro5.jpg"),
         },
         {
             "name": "Alejandro C.",
             "github": "https://github.com/alc98",
-            "photo": "images/team/miembro6.jpg"
+            "photo": str(TEAM_IMAGES_DIR / "miembro6.jpg"),
         },
     ]
 
     # Grid de 2 filas x 3 columnas, con GitHub justo debajo del nombre
     for row_start in range(0, len(team), 3):
         cols = st.columns(3)
-        for col, member in zip(cols, team[row_start:row_start + 3]):
+        for col, member in zip(cols, team[row_start : row_start + 3]):
             with col:
                 st.markdown("### " + member["name"])
                 st.markdown(f"**GitHub:** [{member['github']}]({member['github']})")
@@ -730,11 +755,15 @@ def page_team():
         """
     )
 
+
 # ---------- APP HEADER ----------
 
 
-st.markdown('''<h1 style="text-align: center;color: black;"> <b> Brain MRI Tumor Detection </b></h1>
-    <h5 style="text-align: center;color: gray"> <em> A Deep Learning based project to detect and segmetate brain tumors in MRI images </em> </h5>''', unsafe_allow_html=True)
+st.markdown(
+    """<h1 style="text-align: center;color: black;"> <b> Brain MRI Tumor Detection </b></h1>
+    <h5 style="text-align: center;color: gray"> <em> A Deep Learning based project to detect and segmetate brain tumors in MRI images </em> </h5>""",
+    unsafe_allow_html=True,
+)
 st.markdown("---")
 
 # ---------- SIDEBAR NAVIGATION ----------
@@ -743,16 +772,15 @@ st.sidebar.header("Navigation Menu")
 st.sidebar.caption("Choose a section to explore the project.")
 
 menu = [
-        "🏠 Home"
-        "📚 Introduction",
-        "📂 Data Sources",
-        "🧬 Deep learning model",
-        "📊 Data Visualization",
-        "🖼️ Example cases",
-        "🔍 Live prediction",
-        "🎥 Media and appointment",
-        "👥 About the Authors"
-    ]
+    "🏠 Home📚 Introduction",
+    "📂 Data Sources",
+    "🧬 Deep learning model",
+    "📊 Data Visualization",
+    "🖼️ Example cases",
+    "🔍 Live prediction",
+    "🎥 Media and appointment",
+    "👥 About the Authors",
+]
 
 choice = st.sidebar.radio("Select a page:", menu)
 
@@ -762,7 +790,7 @@ if choice == "🏠 Home":
     page_home()
 elif choice == "📚 Introduction":
     page_intro()
-elif choice ==  "📂 Data Sources":  
+elif choice == "📂 Data Sources":
     page_sources()
 elif choice == "🧬 Deep learning model":
     page_model()
@@ -779,20 +807,7 @@ elif choice == "👥 About the Authors":
 
 # ---------- FOOTER ----------
 st.markdown("---")
-st.markdown("<p style='text-align: center; color: gray; font-size: 1em;'>© 2025 Brain MRI Tumor Detection </p>",unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+st.markdown(
+    "<p style='text-align: center; color: gray; font-size: 1em;'>© 2025 Brain MRI Tumor Detection </p>",
+    unsafe_allow_html=True,
+)

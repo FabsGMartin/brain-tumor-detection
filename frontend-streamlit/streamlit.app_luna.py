@@ -1,17 +1,32 @@
-#-----------LIBRARIES LOADING-------------
+# -----------LIBRARIES LOADING-------------
 
-import streamlit as st  
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 from PIL import Image
 from pathlib import Path
-#import datetime
+
+# import datetime
 import requests
 import base64
 import io
 import numpy as np
 import random
 
+# ---------- PATH CONSTANTS ----------
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR.parent / "data"
+IMAGES_DIR = BASE_DIR / "img"
+VIDEO_PATH = BASE_DIR / "video.mp4"
+
+# CSV files
+ROUTE_LABEL_CSV = DATA_DIR / "route_label.csv"
+SEGMENTATION_ROUTES_LABELS_CSV = DATA_DIR / "segmentation_routes_labels.csv"
+
+# Image files
+KAGGLE_IMAGE = IMAGES_DIR / "kaggle.png"
+TCIA_IMAGE = IMAGES_DIR / "TCIA.png"
+GITHUB_IMAGE = IMAGES_DIR / "github.png"
 
 # ---------- PAGE CONFIGURATION ----------
 
@@ -19,13 +34,13 @@ st.set_page_config(
     page_title="Brain MRI Tumor Detection",
     page_icon="🧠",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
 # ---------- CUSTOM CSS STYLING ----------
 
 st.markdown(
-"""
+    """
     <style>
     /* Highlight analysis box */
     .highlight-box {
@@ -53,16 +68,14 @@ st.markdown(
     }
 
     </style>
-    """
-  ,unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
-#-----------DATAFRAME LOADING and ROUTES -------------
+# -----------DATAFRAME LOADING and ROUTES -------------
 
-df = pd.read_csv("../data/route_label.csv")
-df_tumors =  pd.read_csv("../data/segmentation_routes_labels.csv")
-
-BASE_DIR = Path(__file__).resolve().parent
-IMAGES_DIR = BASE_DIR / "img"
+df = pd.read_csv(str(ROUTE_LABEL_CSV))
+df_tumors = pd.read_csv(str(SEGMENTATION_ROUTES_LABELS_CSV))
 
 
 def call_flask_model(api_url: str, pil_image: Image.Image):
@@ -75,97 +88,108 @@ def call_flask_model(api_url: str, pil_image: Image.Image):
 
     url = api_url.rstrip("/") + "/predict"
 
-    resp = requests.post(
-        url,
-        json={"image_base64": img_b64},
-        timeout=60
-    )
+    resp = requests.post(url, json={"image_base64": img_b64}, timeout=60)
     resp.raise_for_status()
     return resp.json()
+
 
 def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
     mask_bytes = base64.b64decode(mask_b64)
     mask_img = Image.open(io.BytesIO(mask_bytes))
     return np.array(mask_img)
 
+
 def page_home():
     st.header("🏠 **Home**")
     st.markdown("")
     st.markdown(
         """
-        Welcome to the Brain MRI Tumor Detection webpage!    
-              
-              
-        This project focuses on the development of a deep learning system for **brain tumor segmentation and detection in MRI scans**, aiming to support medical research and improve early identification of low-grade gliomas.   
-                 
-        <div class="highlight-box">   
-           
+        Welcome to the Brain MRI Tumor Detection webpage!
+
+
+        This project focuses on the development of a deep learning system for **brain tumor segmentation and detection in MRI scans**, aiming to support medical research and improve early identification of low-grade gliomas.
+
+        <div class="highlight-box">
+
         The project combines:
         - **Medical and domain knowledge**, to formulate clinically relevant questions.
         - **AI engineering and AIOps**, to design, train and deploy robust models.
         - **Data engineering**, to process raw TIFF images into analysis-ready tensors.
         - **Frontend and UX design**, to create interfaces that fit real clinical workflows.
-        Effective AI in healthcare always requires this kind of cross-disciplinary collaboration.   
-        
+        Effective AI in healthcare always requires this kind of cross-disciplinary collaboration.
+
         </div>
 
         The website is organized into several sections to guide you through the project:
-        - 🏠 **Home** – Overview of the project  
-        - 📚 **Introduction** – Context and motivation  
-        - 📂 **Data Sources** – Description of the datasets used  
-        - 🧬 **Deep Learning Model** – Architecture, training, and methodology  
-        - 📊 **Data Visualization** – Exploratory and technical visual analyses  
-        - 🔍 **Live Prediction** – Real-time model inference on user-uploaded MRI images  
-        - 🎥 **Visual Demo** – Practical demonstration of the segmentation results  
-        - 🤝 **Collaboration** – Ways to contribute to the project or cancer research  
+        - 🏠 **Home** – Overview of the project
+        - 📚 **Introduction** – Context and motivation
+        - 📂 **Data Sources** – Description of the datasets used
+        - 🧬 **Deep Learning Model** – Architecture, training, and methodology
+        - 📊 **Data Visualization** – Exploratory and technical visual analyses
+        - 🔍 **Live Prediction** – Real-time model inference on user-uploaded MRI images
+        - 🎥 **Visual Demo** – Practical demonstration of the segmentation results
+        - 🤝 **Collaboration** – Ways to contribute to the project or cancer research
         - 👥 **About the Authors** – Information about the project contributors
 
         Thank you for visiting — your interest and participation help strengthen ongoing efforts in medical imaging and cancer research.
 
-        """,unsafe_allow_html=True
+        """,
+        unsafe_allow_html=True,
     )
 
 
 def page_intro():
     st.header("📚 **Introduction**")
-    st.markdown('''
-        
+    st.markdown(
+        """
+
         <h5 style="text-align: center;color: black;"> <b>What Is a Low-Grade Glioma?</b></h5>
-                
+
         **Brain cancer**, and in particular **low-grade gliomas (LGG) requires early diagnosis and careful monitoring**.
-        From a clinical perspective, low-grade gliomas often affect relatively young adults and may present with **seizures, headaches or subtle cognitive changes**. 
+        From a clinical perspective, low-grade gliomas often affect relatively young adults and may present with **seizures, headaches or subtle cognitive changes**.
         <br> </br>
-        ''', unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown('<h5 style="text-align: center;color: black;"> <b>Why Early Detection Is Important?</b></h5>',unsafe_allow_html=True)
-    st.markdown('''
-                
-                **Early detection of brain tumors** plays a crucial role in **improving patient outcomes**. When identified at an early stage, tumors are often smaller, less aggressive, and more responsive to treatment, **allowing clinicians to intervene before neurological damage becomes extensive**.        
+    st.markdown(
+        '<h5 style="text-align: center;color: black;"> <b>Why Early Detection Is Important?</b></h5>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
 
-                ''',unsafe_allow_html=True) 
+                **Early detection of brain tumors** plays a crucial role in **improving patient outcomes**. When identified at an early stage, tumors are often smaller, less aggressive, and more responsive to treatment, **allowing clinicians to intervene before neurological damage becomes extensive**.
 
+                """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown('''
+    st.markdown(
+        """
         <div class="red-box">
-                
+
         - Around 80% of people living with a brain tumor require neurorehabilitation.
-        - In 2022, 322,000 new cases of brain and central nervous system tumors were estimated globally. 
+        - In 2022, 322,000 new cases of brain and central nervous system tumors were estimated globally.
         - Brain tumors account for approximately 2% of all cancers diagnosed in adults and 15% of those diagnosed in children.
         - About 80% of patients will present cognitive dysfunction, and 78% will present motor dysfunction.
-        
+
         </div>
         <br></br>
-    ''',unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown(''' 
-        <h5 style="text-align: center;color: black;"> <b>Why MRI tumor segmentation is important in Low-Grade Glioma Patients?</b></h5>     
+    st.markdown(
+        """
+        <h5 style="text-align: center;color: black;"> <b>Why MRI tumor segmentation is important in Low-Grade Glioma Patients?</b></h5>
 
         Even though they are classified as "low grade", **they can progress to high-grade gliomas**, so **longitudinal monitoring with MRI** and, when indicated, histopathological and molecular analysis are **key for prognosis and treatment planning**.
-                
-        **MRI-based diagnosis** is especially valuable, as it **provides detailed structural information without exposing patients to radiation**. 
 
-         <div class="highlight-box">      
-        
+        **MRI-based diagnosis** is especially valuable, as it **provides detailed structural information without exposing patients to radiation**.
+
+         <div class="highlight-box">
+
         For radiologists and data scientists, MRI is interesting because it combines:
         - **Anatomical detail** (T1- and T2-weighted sequences).
         - **Edema and tumor extent** visualization (FLAIR).
@@ -176,69 +200,82 @@ def page_intro():
 
          </div>
         <br></br>
-        ''',unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
-
-
-    st.markdown('''Advances in **automated image analysis and deep learning** now offer the possibility of **supporting radiologists with faster, more consistent tumor identification**. By accelerating the diagnostic process, **reducing human error, and enabling timely intervention**, early detection becomes a powerful tool in improving survival rates and enhancing quality of life for patients affected by brain tumors.")
-    ''',unsafe_allow_html=True)
-
-
-
-
+    st.markdown(
+        """Advances in **automated image analysis and deep learning** now offer the possibility of **supporting radiologists with faster, more consistent tumor identification**. By accelerating the diagnostic process, **reducing human error, and enabling timely intervention**, early detection becomes a powerful tool in improving survival rates and enhancing quality of life for patients affected by brain tumors.")
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def page_sources():
     st.header("📂 **Data Sources**")
-    st.markdown('''
+    st.markdown(
+        """
 
     The **LGG MRI Segmentation** dataset comes from the TCGA-LGG collection hosted on [*The Cancer Imaging Archive (TCIA)*](https://www.cancerimagingarchive.net/collection/tcga-lgg/) and was curated and released on [Kaggle by Mateusz Buda](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation/data). It contains MRI scans of patients diagnosed with **low-grade gliomas**, along with expert-annotated **tumor segmentation masks**.
-    ''',unsafe_allow_html=True)
-    col1, col2, col3,col4,col5 = st.columns([2,5,2,5,2],gap="large",vertical_alignment="center")
+    """,
+        unsafe_allow_html=True,
+    )
+    col1, col2, col3, col4, col5 = st.columns(
+        [2, 5, 2, 5, 2], gap="large", vertical_alignment="center"
+    )
     with col2:
-        with st.container(border=True,):
-            st.image("./img/kaggle.png",use_container_width=True)
-            st.markdown('''
+        with st.container(
+            border=True,
+        ):
+            st.image(str(KAGGLE_IMAGE), use_container_width=True)
+            st.markdown(
+                """
                         <center>
 
                         Kaggle – [LGG MRI Segmentation Dataset](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation)
 
                         </center>
-                        ''',unsafe_allow_html=True)
+                        """,
+                unsafe_allow_html=True,
+            )
     with col4:
         with st.container(border=True):
-            st.image("./img/TCIA.png",use_container_width=True)
-            st.markdown('''
+            st.image(str(TCIA_IMAGE), use_container_width=True)
+            st.markdown(
+                """
                         <center>
 
                         TCIA – [TCGA-LGG Collection](https://www.cancerimagingarchive.net)
-                        
+
                         </center>
-                        ''',unsafe_allow_html=True)
-                   
-    st.markdown('''
+                        """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown(
+        """
     ##### **Data Key Characteristics**
-                  
-    - **Patients:** ~110  
-    - **Total images:** ~3,900 MRI slices  
-    - **Modalities:** Multi-channel `.tiff` images (commonly including FLAIR and contrast variations)  
-    - **Annotations:** Single-channel masks marking the tumor region  
-    - **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks  
 
-    ##### **Why It’s Useful for Brain Tumor Segmentation?**    
-                    
-    - Provides **reliable ground-truth labels** for supervised learning.  
-    - Includes **multiple slices per patient**, giving models diverse anatomical variation.  
+    - **Patients:** ~110
+    - **Total images:** ~3,900 MRI slices
+    - **Modalities:** Multi-channel `.tiff` images (commonly including FLAIR and contrast variations)
+    - **Annotations:** Single-channel masks marking the tumor region
+    - **Structure:** Each patient folder includes MRI slices and corresponding segmentation masks
 
-    ''',unsafe_allow_html=True)
+    ##### **Why It’s Useful for Brain Tumor Segmentation?**
 
-                
+    - Provides **reliable ground-truth labels** for supervised learning.
+    - Includes **multiple slices per patient**, giving models diverse anatomical variation.
+
+    """,
+        unsafe_allow_html=True,
+    )
+
 
 def page_data():
     st.header("📊 Dataset Visualization")
-    df_routes = pd.read_csv("../data/route_label.csv",index_col=0)
-    tab_plots,tab_table = st.tabs([ "📈 Plots","📄 Table"])
-
+    df_routes = pd.read_csv(str(ROUTE_LABEL_CSV), index_col=0)
+    tab_plots, tab_table = st.tabs(["📈 Plots", "📄 Table"])
 
     # ===== PLOTS =====
     with tab_plots:
@@ -248,9 +285,12 @@ def page_data():
         class_counts = df_routes["mask"].value_counts().reset_index()
         class_counts.columns = ["mask_value", "Number of images"]
 
-        class_counts["Class"] = class_counts["mask_value"].map({
-            0: "0 – Negative (no tumor)",
-            1: "1 – Positive (tumor present)",})
+        class_counts["Class"] = class_counts["mask_value"].map(
+            {
+                0: "0 – Negative (no tumor)",
+                1: "1 – Positive (tumor present)",
+            }
+        )
 
         # Keep only the columns needed for the plot
         class_counts = class_counts[["Class", "Number of images"]]
@@ -268,19 +308,24 @@ def page_data():
 
         # Global prevalence (image-level)
         prevalence = df_routes["mask"].mean()
-        st.markdown(f'''
-                    <div style="text-align: center;">     
-                          
-                    *In this dataset ≈ {prevalence*100:.2f}% of the images are labelled as positive (`mask = 1`).*
+        st.markdown(
+            f"""
+                    <div style="text-align: center;">
 
-                     </div>   
+                    *In this dataset ≈ {prevalence * 100:.2f}% of the images are labelled as positive (`mask = 1`).*
 
-            ''',unsafe_allow_html=True)
+                     </div>
+
+            """,
+            unsafe_allow_html=True,
+        )
 
         # ===== TABLE =====
         with tab_table:
             st.subheader("`route_label.csv`")
-            st.markdown("*Overview of routes MRI images and mask, with their corresponding label (0 – Negative (no tumor),1 – Positive (tumor present)*")
+            st.markdown(
+                "*Overview of routes MRI images and mask, with their corresponding label (0 – Negative (no tumor),1 – Positive (tumor present)*"
+            )
             st.dataframe(df_routes[df_routes.columns])
     # =====================================================================
     #  🔬 Scientific medical + data science interpretation
@@ -288,76 +333,78 @@ def page_data():
     prevalence_global = df_routes["mask"].mean()
     negative_pct = (1 - prevalence_global) * 100
     positive_pct = prevalence_global * 100
-    
+
     show_analysis = st.expander("Show Authors' Analysis", expanded=True)
     with show_analysis:
-        st.markdown(f"""
-                    
-        <h4 style="margin:0 0 8px 0;">✍️ Author’s Analysis</h4>
-    <div class="highlight-box">  
-<p style="margin:0;">                             
+        st.markdown(
+            f"""
 
-                    
+        <h4 style="margin:0 0 8px 0;">✍️ Author’s Analysis</h4>
+    <div class="highlight-box">
+<p style="margin:0;">
+
+
 <h5 style="text-align: center;color: black;"> <b> Cohort composition (image-level class distribution)</b></h5>
-                    
+
 In this dataset:
 
 
-- **≈ {negative_pct:.1f}%** of MRI slices are labelled as  
-  **0 – Negative (no tumor)**  
-- **≈ {positive_pct:.1f}%** of MRI slices are labelled as  
-  **1 – Positive (tumor present)**  
+- **≈ {negative_pct:.1f}%** of MRI slices are labelled as
+  **0 – Negative (no tumor)**
+- **≈ {positive_pct:.1f}%** of MRI slices are labelled as
+  **1 – Positive (tumor present)**
 
 This yields an **image-level tumor prevalence of approximately {positive_pct:.1f}%**.
 
-From a methodological standpoint, this indicates a **moderately imbalanced dataset**, 
-with a dominant negative class and a substantial proportion of positive slices.  
-Therefore, **any classification model** must outperform a trivial baseline predicting 
+From a methodological standpoint, this indicates a **moderately imbalanced dataset**,
+with a dominant negative class and a substantial proportion of positive slices.
+Therefore, **any classification model** must outperform a trivial baseline predicting
 the majority class (≈ **{negative_pct:.1f}% accuracy**) to demonstrate meaningful discriminative value.
 
 
 <h5 style="text-align: center;color: black;"> <b> Clinical and machine-learning implications </b></h5>
 
-- The enrichment in tumor-positive slices (≈ {positive_pct:.1f}%) is higher than in routine clinical cohorts, 
-  which usually contain far fewer tumors. This is advantageous for model development, as it provides a 
+- The enrichment in tumor-positive slices (≈ {positive_pct:.1f}%) is higher than in routine clinical cohorts,
+  which usually contain far fewer tumors. This is advantageous for model development, as it provides a
   sufficient number of positive examples to learn tumor-related patterns and to train segmentation models.
 
-- Because of the moderate class imbalance, evaluation should not rely solely on accuracy. More informative metrics are:  
+- Because of the moderate class imbalance, evaluation should not rely solely on accuracy. More informative metrics are:
 
-  - **Sensitivity / recall** for positive cases (`mask = 1`)  
-  - **Specificity** for negative cases (`mask = 0`)  
+  - **Sensitivity / recall** for positive cases (`mask = 1`)
+  - **Specificity** for negative cases (`mask = 0`)
   - **AUC-ROC** and **AUC-PR**, which better capture performance under imbalance.
 
-- If the model tends to under-detect tumors, one may consider:  
-  - **Class-weighted loss functions**  
-  - **Focal loss**  
+- If the model tends to under-detect tumors, one may consider:
+  - **Class-weighted loss functions**
+  - **Focal loss**
   - **Oversampling of positive slices** or undersampling of negatives.
 
 
-<h5 style="text-align: center;color: black;"> <b> 
+<h5 style="text-align: center;color: black;"> <b>
 
 Utility of the `mask` column
 </b></h5>
 Although voxel-wise segmentation masks are available via `mask_path`, the binary image-level label (`mask`) enables:
 
 
-- Rapid assessment of **class distribution** (as visualised in the pie chart).  
-- Training of a **binary tumor vs. no-tumor classifier** as a screening or pre-filtering stage.  
+- Rapid assessment of **class distribution** (as visualised in the pie chart).
+- Training of a **binary tumor vs. no-tumor classifier** as a screening or pre-filtering stage.
 - Stratified analyses, for example comparing intensity distributions or radiomic features between positive and negative slices.
 
 </p>
-<div/> 
+<div/>
 
 From a clinical research perspective, the cohort can be succinctly described as:
 
 > *"In this dataset, approximately {positive_pct:.1f}% of MRI slices contain visible tumor tissue according to expert segmentation. This prevalence establishes the baseline that any automated detection model must exceed in order to be clinically relevant."*
 
 
-""",unsafe_allow_html=True)
+""",
+            unsafe_allow_html=True,
+        )
 
 
-
-def page_cases(): 
+def page_cases():
     st.header("🧠 MRI Images Visualization")
 
     st.markdown(
@@ -368,7 +415,8 @@ def page_cases():
         1. **Original MRI**
         2. **Binary tumor mask** (white = tumor, black = background)
         3. **MRI with the superimposed mask** (only in cases with a tumor)
-        """)
+        """
+    )
 
     rows_dir = IMAGES_DIR
 
@@ -454,9 +502,9 @@ def page_cases():
             w, h = img_row.size
             col_w = w // 3
 
-            img_mri      = img_row.crop((0,        0, col_w,   h))
-            img_mask     = img_row.crop((col_w,    0, 2*col_w, h))
-            img_mri_mask = img_row.crop((2*col_w,  0, w,       h))
+            img_mri = img_row.crop((0, 0, col_w, h))
+            img_mask = img_row.crop((col_w, 0, 2 * col_w, h))
+            img_mri_mask = img_row.crop((2 * col_w, 0, w, h))
 
             c1, c2, c3 = st.columns(3)
 
@@ -563,7 +611,6 @@ def page_cases():
             unsafe_allow_html=True,
         )
 
- 
 
 def page_model():
     st.header("🧬 Deep learning model")
@@ -576,7 +623,7 @@ def page_model():
         - Help standardize reports across radiologists.
         Final responsibility for diagnosis and treatment decisions always remains
         with the clinical team.
-        
+
         """
     )
 
@@ -709,6 +756,7 @@ def page_model():
         """
     )
 
+
 def page_live_prediction():
     st.header("🔍 Live prediction with Flask model")
 
@@ -735,8 +783,7 @@ def page_live_prediction():
     api_url = st.sidebar.text_input("Base API URL", "http://localhost:8000")
 
     uploaded_file = st.file_uploader(
-        "Upload an MRI image (PNG/JPG)",
-        type=["png", "jpg", "jpeg"]
+        "Upload an MRI image (PNG/JPG)", type=["png", "jpg", "jpeg"]
     )
 
     st.warning(
@@ -774,14 +821,8 @@ def page_live_prediction():
                 diagnosis = "TUMOR DETECTED" if has_tumor else "NO SIGNS OF TUMOR"
                 color = "🔴" if has_tumor else "🟢"
 
-                st.metric(
-                    label="Model diagnosis",
-                    value=f"{color} {diagnosis}"
-                )
-                st.metric(
-                    label="Tumor probability",
-                    value=f"{prob*100:.2f} %"
-                )
+                st.metric(label="Model diagnosis", value=f"{color} {diagnosis}")
+                st.metric(label="Tumor probability", value=f"{prob * 100:.2f} %")
 
                 st.markdown(
                     """
@@ -798,7 +839,11 @@ def page_live_prediction():
                 st.markdown("### Segmentation mask (optional)")
                 try:
                     mask_arr = decode_mask_from_b64(mask_b64)
-                    st.image(mask_arr, caption="Mask predicted by the model", use_column_width=True)
+                    st.image(
+                        mask_arr,
+                        caption="Mask predicted by the model",
+                        use_column_width=True,
+                    )
                 except Exception:
                     st.info("The mask returned by the API could not be decoded.")
 
@@ -808,16 +853,19 @@ def page_live_prediction():
                     "subtypes in research studies."
                 )
 
+
 def page_media():
     st.header("🎥 Visual demo")
-    
+
     st.subheader("Demo video of the app / model")
     try:
-        with open("video.mp4", "rb") as video_file:
+        with open(str(VIDEO_PATH), "rb") as video_file:
             video_bytes = video_file.read()
         st.video(video_bytes)
     except Exception:
-        st.info("Place a `video.mp4` file next to `app.py` or update the path in the code.")
+        st.info(
+            f"Place a `video.mp4` file at `{VIDEO_PATH}` or update the path in the code."
+        )
 
     st.markdown(
         """
@@ -830,75 +878,89 @@ def page_media():
         """
     )
 
+
 def page_collab():
     st.header("🤝 Collaboration")
-    st.markdown('''
+    st.markdown("""
 
 Collaboration is central to the success and scientific value of this brain tumor segmentation project. Our work builds directly on the collective efforts of the research community and the open-access initiatives that make high-quality medical imaging data available for machine learning research.
 
 We acknowledge and thank the contributors of the **LGG MRI Segmentation** dataset, derived from the TCGA-LGG collection on *The Cancer Imaging Archive (TCIA)* and curated by Mateusz Buda. Their commitment to transparent data sharing enables researchers worldwide to develop, benchmark, and validate deep learning models for low-grade glioma segmentation. You can learn more about the dataset or contribute to their ongoing initiatives through the following links:
-''')
-    col1, col2, col3,col4,col5 = st.columns([2,5,2,5,2],gap="large",vertical_alignment="center")
+""")
+    col1, col2, col3, col4, col5 = st.columns(
+        [2, 5, 2, 5, 2], gap="large", vertical_alignment="center"
+    )
     with col2:
-        with st.container(border=True,):
-            st.image("./img/kaggle.png",use_container_width=True)
-            st.markdown('''
+        with st.container(
+            border=True,
+        ):
+            st.image(str(KAGGLE_IMAGE), use_container_width=True)
+            st.markdown(
+                """
                         <center>
 
                         Kaggle – [LGG MRI Segmentation Dataset](https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation)
 
                         </center>
-                        ''',unsafe_allow_html=True)
+                        """,
+                unsafe_allow_html=True,
+            )
     with col4:
         with st.container(border=True):
-            st.image("./img/TCIA.png",use_container_width=True)
-            st.markdown('''
+            st.image(str(TCIA_IMAGE), use_container_width=True)
+            st.markdown(
+                """
                         <center>
 
                         TCIA – [TCGA-LGG Collection](https://www.cancerimagingarchive.net)
-                        
+
                         </center>
-                        ''',unsafe_allow_html=True)
+                        """,
+                unsafe_allow_html=True,
+            )
 
+    st.markdown(
+        """We also actively encourage collaboration within our own project. Our repository is publicly available, and we invite contributions related to model development, preprocessing pipelines, evaluation metrics, or exploratory radiogenomic analysis. Whether you are a researcher, clinician, or data scientist, your expertise can help improve the robustness and clinical relevance of our neural network models."""
+    )
 
-    st.markdown('''We also actively encourage collaboration within our own project. Our repository is publicly available, and we invite contributions related to model development, preprocessing pipelines, evaluation metrics, or exploratory radiogenomic analysis. Whether you are a researcher, clinician, or data scientist, your expertise can help improve the robustness and clinical relevance of our neural network models.''')
-
-    col1, col2, col3,col4,col5 = st.columns([2,2,5,2,2],gap="large",vertical_alignment="center")
+    col1, col2, col3, col4, col5 = st.columns(
+        [2, 2, 5, 2, 2], gap="large", vertical_alignment="center"
+    )
     with col3:
         with st.container(border=True):
-            st.image("./img/github.png")
-            st.markdown(''' 
-                        <center>  
-                        
-                        GitHub Repository [Brain Tumor Detection Project](https://github.com/FabsGMartin/brain-tumor-detection)
-                    
-                        </center>
-                        ''',unsafe_allow_html=True)
-    st.markdown('''
-We welcome pull requests, issue reporting, dataset discussions, and architectural improvements. In the spirit of open science, our goal is to create a collaborative space where insights and methods can be shared, replicated, and expanded. Through joint effort with both external data providers and the broader scientific community, we aim to produce reliable and reproducible tools that support research and clinical innovation in brain tumor analysis.
-''')
+            st.image(str(GITHUB_IMAGE))
+            st.markdown(
+                """
+                        <center>
 
-    st.markdown('''
+                        GitHub Repository [Brain Tumor Detection Project](https://github.com/FabsGMartin/brain-tumor-detection)
+
+                        </center>
+                        """,
+                unsafe_allow_html=True,
+            )
+    st.markdown("""
+We welcome pull requests, issue reporting, dataset discussions, and architectural improvements. In the spirit of open science, our goal is to create a collaborative space where insights and methods can be shared, replicated, and expanded. Through joint effort with both external data providers and the broader scientific community, we aim to produce reliable and reproducible tools that support research and clinical innovation in brain tumor analysis.
+""")
+
+    st.markdown(
+        """
     ##### Support Cancer Research
 
     Beyond contributing to this project, you can also support the broader fight against cancer. Advancing treatments, improving diagnostics, and understanding tumor biology all depend on continued scientific and clinical research. Many organizations work tirelessly to fund studies, support patients, and accelerate the development of life-saving therapies.
 
     Here are several well-regarded associations you can collaborate with or donate to:
 
-    - **American Cancer Society (ACS):** https://www.cancer.org  
-    - **Brain Tumor Foundation:** https://www.braintumorfoundation.org  
-    - **National Brain Tumor Society (NBTS):** https://braintumor.org  
-    - **Cancer Research UK:** https://www.cancerresearchuk.org  
-    - **European Organisation for Research and Treatment of Cancer (EORTC):** https://www.eortc.org  
+    - **American Cancer Society (ACS):** https://www.cancer.org
+    - **Brain Tumor Foundation:** https://www.braintumorfoundation.org
+    - **National Brain Tumor Society (NBTS):** https://braintumor.org
+    - **Cancer Research UK:** https://www.cancerresearchuk.org
+    - **European Organisation for Research and Treatment of Cancer (EORTC):** https://www.eortc.org
 
     Your support (whether through scientific collaboration, sharing expertise, or contributing to research foundations) helps move the field forward and brings us closer to better outcomes for patients around the world.
-    ''',unsafe_allow_html=True)
-
-
-
-
-
-
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def page_team():
@@ -906,68 +968,75 @@ def page_team():
 
     st.markdown(
         """
-        This work has been developed by a multidisciplinary team of data scientist with knowledge in  AIops.  
-        
+        This work has been developed by a multidisciplinary team of data scientist with knowledge in  AIops.
+
         Below you can see our profiles and GitHub links.
         """
     )
-
 
     team = [
         {
             "name": "Luna Pérez T.",
             "github": "https://github.com/LunaPerezT",
-            "linkedin": "https://www.linkedin.com/in/luna-p%C3%A9rez-troncoso-0ab21929b/"
+            "linkedin": "https://www.linkedin.com/in/luna-p%C3%A9rez-troncoso-0ab21929b/",
         },
         {
             "name": "Raquel Hernández",
             "github": "https://github.com/RaquelH18",
-            "linkedin":"https://www.linkedin.com/in/raquel-hern%C3%A1ndez-lozano/"
+            "linkedin": "https://www.linkedin.com/in/raquel-hern%C3%A1ndez-lozano/",
         },
         {
             "name": "Mary Marín",
             "github": "https://github.com/mmarin3011-cloud",
-            "linkedin":"https://www.linkedin.com/in/mmarin30/"
+            "linkedin": "https://www.linkedin.com/in/mmarin30/",
         },
         {
             "name": "Fabián G. Martín",
             "github": "https://github.com/FabsGMartin",
-            "linkedin":""
+            "linkedin": "",
         },
         {
             "name": "Miguel J. de la Torre",
             "github": "https://github.com/migueljdlt",
-            "linkedin":"https://www.linkedin.com/in/miguel-jimenez-7403a2374/"
+            "linkedin": "https://www.linkedin.com/in/miguel-jimenez-7403a2374/",
         },
         {
             "name": "Alejandro C.",
             "github": "https://github.com/alc98",
-            "linkedin":"https://www.linkedin.com/in/alejandro-c-9b6525292/"
+            "linkedin": "https://www.linkedin.com/in/alejandro-c-9b6525292/",
         },
     ]
 
     # Grid de 2 filas x 3 columnas, con GitHub justo debajo del nombre
     for row_start in range(0, len(team), 3):
         cols = st.columns(3)
-        for col, member in zip(cols, team[row_start:row_start + 3]):
+        for col, member in zip(cols, team[row_start : row_start + 3]):
             with col:
                 with st.container(border=True):
-                    st.markdown(f'<h5 style="text-align: center;color: black;"> <b>{member["name"]}</b></h5>',unsafe_allow_html=True)
-                    st.markdown(f'''
-                                <center>
-                                
-                                **GitHub:** [{member['github']}]({member['github']})
-                                
-                                </center>
-                                ''',unsafe_allow_html=True)
-                    st.markdown(f'''
+                    st.markdown(
+                        f'<h5 style="text-align: center;color: black;"> <b>{member["name"]}</b></h5>',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f"""
                                 <center>
 
-                                **LinkedIn:** [{member['linkedin']}]({member['linkedin']})
-                                
+                                **GitHub:** [{member["github"]}]({member["github"]})
+
                                 </center>
-                                ''',unsafe_allow_html=True)
-                    
+                                """,
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f"""
+                                <center>
+
+                                **LinkedIn:** [{member["linkedin"]}]({member["linkedin"]})
+
+                                </center>
+                                """,
+                        unsafe_allow_html=True,
+                    )
 
     st.info(
         """
@@ -978,11 +1047,15 @@ def page_team():
         """
     )
 
+
 # ---------- APP HEADER ----------
 
 
-st.markdown('''<h1 style="text-align: center;color: black;"> <b> Brain MRI Tumor Detection </b></h1>
-    <h5 style="text-align: center;color: gray"> <em> A Deep Learning based project to detect and segmetate brain tumors in MRI images </em> </h5>''', unsafe_allow_html=True)
+st.markdown(
+    """<h1 style="text-align: center;color: black;"> <b> Brain MRI Tumor Detection </b></h1>
+    <h5 style="text-align: center;color: gray"> <em> A Deep Learning based project to detect and segmetate brain tumors in MRI images </em> </h5>""",
+    unsafe_allow_html=True,
+)
 st.markdown("---")
 
 # ---------- SIDEBAR NAVIGATION ----------
@@ -991,17 +1064,17 @@ st.sidebar.header("Navigation Menu")
 st.sidebar.caption("Choose a section to explore the project.")
 
 menu = [
-        "🏠 Home",
-        "📚 Introduction",
-        "📂 Data Sources",
-        "📊 Dataset Visualization",
-        "🧠 MRI Images Visualization",
-        "🧬 Deep learning model",
-        "🔍 Live prediction",
-        "🎥 Visual demo",
-        "🤝 Collaboration",
-        "👥 About the Authors"
-    ]
+    "🏠 Home",
+    "📚 Introduction",
+    "📂 Data Sources",
+    "📊 Dataset Visualization",
+    "🧠 MRI Images Visualization",
+    "🧬 Deep learning model",
+    "🔍 Live prediction",
+    "🎥 Visual demo",
+    "🤝 Collaboration",
+    "👥 About the Authors",
+]
 
 choice = st.sidebar.radio("Select a page:", menu)
 
@@ -1011,7 +1084,7 @@ if choice == "🏠 Home":
     page_home()
 elif choice == "📚 Introduction":
     page_intro()
-elif choice ==  "📂 Data Sources":  
+elif choice == "📂 Data Sources":
     page_sources()
 elif choice == "📊 Dataset Visualization":
     page_data()
@@ -1023,27 +1096,14 @@ elif choice == "🔍 Live prediction":
     page_live_prediction()
 elif choice == "🎥 Visual demo":
     page_media()
-elif choice =="🤝 Collaboration":
+elif choice == "🤝 Collaboration":
     page_collab()
 elif choice == "👥 About the Authors":
     page_team()
 
 # ---------- FOOTER ----------
 st.markdown("---")
-st.markdown("<p style='text-align: center; color: gray; font-size: 1em;'>© 2025 Brain MRI Tumor Detection </p>",unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+st.markdown(
+    "<p style='text-align: center; color: gray; font-size: 1em;'>© 2025 Brain MRI Tumor Detection </p>",
+    unsafe_allow_html=True,
+)
