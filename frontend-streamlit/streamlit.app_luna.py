@@ -444,20 +444,20 @@ def page_cases():
         # Primero SIN tumor, luego CON tumor
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            tipo = st.radio("Selecciona tipo de caso",("🟢 Sin tumor", "🔴 Con tumor"),horizontal=True,index=0, width="stretch")
+            tipo = st.radio("Show the case example: ",("🟢 Without tumor", "🔴 With tumor"),horizontal=True,index=0, width="stretch")
 
-        if tipo == "🔴 Con tumor":
+        if tipo == "🔴 With Tumor":
             active_rows = tumor_rows
             state_key = "random_row_idx_tumor"
-            boton_texto = "🔀 Mostrar otro caso con tumor"
-            titulo_prefix = "Caso"
-            subtitulo_suffix = "tumor cerebral segmentado"
+            boton_texto = "🔀 Show another tumor MRI image"
+            titulo_prefix = "Cancer Patient"
+            subtitulo_suffix = "Tumor RMI image"
         else:
             active_rows = no_tumor_rows
             state_key = "random_row_idx_no_tumor"
-            boton_texto = "🔀 Mostrar otro caso sano"
-            titulo_prefix = "Caso sano"
-            subtitulo_suffix = "RM sin tumor visible"
+            boton_texto = "🔀 Show another healthy patient MRI image"
+            titulo_prefix = "Healthy Patient"
+            subtitulo_suffix = "No tumor RMI image"
 
         if not active_rows:
             if tipo == "🔴 Con tumor":
@@ -546,17 +546,9 @@ def page_cases():
         else:
             # ejemplo sin tumor: una única RM; la máscara está ya implícita (vacía)
             img_mri = Image.open(current_path).convert("RGB")
-
-
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<h5 style='text-align:center'>RMI images original (sin tumor)</h5>",unsafe_allow_html=True,)
-
-                
-
-            # En ambos casos se muestra la misma imagen, porque no hay tumor
-            st.image(img_mri, use_column_width=False)
-
-            # 🧼 Descripción clínico–analítica en inglés (sin tumor)
+            st.markdown("<h5 style='text-align:center'>No Tumor RMI Images</h5>",unsafe_allow_html=True,)
+            st.image(img_mri,  use_container_width=False)
             st.markdown(
                 """
                 #### Clinical / data analyst interpretation (no visible tumor)
@@ -575,23 +567,6 @@ def page_cases():
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        if tipo == "🔴 Con tumor":
-            note_text = (
-                "Nota: estos son ejemplos de cortes 2D con tumor. En la práctica se analizan "
-                "volúmenes 3D y múltiples secuencias (T1, T2, FLAIR, contraste), junto con "
-                "la historia clínica."
-            )
-        else:
-            note_text = (
-                "Nota: en estos casos no hay tumor en el corte mostrado. La 'máscara' es vacía, "
-                "por lo que la RM con y sin máscara se ven iguales. Compararlos con los casos "
-                "con tumor ayuda a entrenar y validar el modelo."
-            )
-
-        st.markdown(
-            f"<p style='text-align:center; font-size:0.9rem;'>{note_text}</p>",
-            unsafe_allow_html=True,
-        )
 
 
 def page_model():
