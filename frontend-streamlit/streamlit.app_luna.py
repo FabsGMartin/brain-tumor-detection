@@ -17,7 +17,7 @@ import random
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR.parent / "data"
 IMAGES_DIR = BASE_DIR / "img"
-VIDEO_PATH = BASE_DIR / "video.mp4"
+VIDEO_PATH = BASE_DIR / "video" /"flask_demo.mp4"
 
 # CSV files
 ROUTE_LABEL_CSV = DATA_DIR / "route_label.csv"
@@ -850,25 +850,10 @@ def page_media():
     st.header("🎥 Flask Backend Visual demo")
 
     st.subheader("Demo video of the app / model")
-    try:
-        with open(str(VIDEO_PATH), "rb") as video_file:
-            video_bytes = video_file.read()
-        st.video(video_bytes)
-    except Exception:
-        st.info(
-            f"Place a `video.mp4` file at `{VIDEO_PATH}` or update the path in the code."
-        )
-
-    st.markdown(
-        """
-        In an integrated hospital environment, a similar interface could be embedded
-        into the radiology workstation or electronic health record to:
-        - Visualize AI-generated segmentations directly on the clinician's screen.
-        - Provide structured summaries of tumor burden over time.
-        - Suggest standardized follow-up intervals according to risk.
-        For now, this demo focuses on showing the core concepts in an accessible way.
-        """
-    )
+    with open(str(VIDEO_PATH), "rb") as video_file:
+        video_bytes = video_file.read()
+    st.video(video_bytes)
+ 
 
 
 def page_collab():
