@@ -535,7 +535,7 @@ def page_cases():
 
 def page_model():
     st.header("🧬 Deep learning model")
-    st.markdown('<br></br> <h3 style="text-align: center;color: black;"> <b> General Pipeline </b></h3>',unsafe_allow_html=True)
+    st.markdown('<h3 style="text-align: center;color: black;"> <b> General Pipeline </b></h3>',unsafe_allow_html=True)
     a,b,c=st.columns(3)
     with b:
         st.image(IMAGES_DIR / "general_pipeline.png" ,use_container_width=True)
@@ -660,26 +660,44 @@ This makes ResUNet a powerful architecture for tasks where accurate object bound
     )
 
     st.markdown('<br></br> <h3 style="text-align: center;color: black;"> <b> Model Evaluation </b></h3>',unsafe_allow_html=True)
-    st.markdown(
-        """
-
-        """
-    )
-    a,b,c,d,e,f,g=st.columns(7,gap="medium",vertical_alignment= "center")
-
-
-    with a:
+    st.markdown("##### **ResNet-50 Classification Model**")
+    A,B,C,D=st.columns([1,4,4,1],gap="medium",vertical_alignment="center")
+    with B:
         with st.container(border=True):
-            st.metric("Accuracy","98.6%")
+            st.image(IMAGES_DIR / "confusion_matrix_classification.png", use_container_width=True)
+    with C:
+        with st.container(border=True):
+            st.image(IMAGES_DIR / "ROC_curve_classification.png", use_container_width=True)
+    a,b,c,d,e,f=st.columns([1,2,2,2,2,1],gap="large",vertical_alignment= "center")
     with b:
         with st.container(border=True):
-            st.metric("Precision","97.8%")
+            st.metric("Accuracy","98.61%")
     with c:
         with st.container(border=True):
-            st.metric("Recall","97.8%")
+            st.metric("Precision","97.84%")
     with d:
         with st.container(border=True):
-            st.metric("F1 score","97.8%")
+            st.metric("Recall","97.84%")
+    with e:
+        with st.container(border=True):
+            st.metric("F1 score","97.84%")
+
+
+
+    st.markdown("##### **ResUNet Segmentation Model**")
+    a,b,c,d,e,f=st.columns([1,2,2,2,2,1],gap="large",vertical_alignment= "center")
+    with b:
+        with st.container(border=True):
+            st.metric("Accuracy","99.25%")
+    with c:
+       with st.container(border=True):
+            st.metric("Dice Coefficient","84.58%")
+    with d:
+        with st.container(border=True):
+            st.metric("Intersection over Union (IoU)","73.38%")
+    with e:
+        with st.container(border=True):
+            st.metric("Dice-BCE Loss","18.29%")
 
     st.markdown("## Integration with Flask")
     st.info(
@@ -829,7 +847,7 @@ def page_live_prediction():
 
 
 def page_media():
-    st.header("🎥 Visual demo")
+    st.header("🎥 Flask Backend Visual demo")
 
     st.subheader("Demo video of the app / model")
     try:
@@ -1045,7 +1063,7 @@ menu = [
     "🧠 MRI Images Visualization",
     "🧬 Deep learning model",
     "🔍 Live prediction",
-    "🎥 Visual demo",
+    "🎥 Flask Backend Visual demo",
     "🤝 Collaboration",
     "👥 About the Authors",
 ]
@@ -1068,7 +1086,7 @@ elif choice == "🧬 Deep learning model":
     page_model()
 elif choice == "🔍 Live prediction":
     page_live_prediction()
-elif choice == "🎥 Visual demo":
+elif choice == "🎥 Flask Backend Visual demo":
     page_media()
 elif choice == "🤝 Collaboration":
     page_collab()
