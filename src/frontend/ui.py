@@ -15,7 +15,9 @@ import random
 
 # ---------- PATH CONSTANTS ----------
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR.parent / "data"
+DATA_DIR = (
+    BASE_DIR.parent.parent / "data"
+)  # Subir dos niveles: frontend -> src -> raíz -> data
 IMAGES_DIR = BASE_DIR / "img"
 VIDEO_PATH = BASE_DIR / "video.mp4"
 
@@ -444,7 +446,13 @@ def page_cases():
         # Primero SIN tumor, luego CON tumor
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            tipo = st.radio("Selecciona tipo de caso",("🟢 Sin tumor", "🔴 Con tumor"),horizontal=True,index=0, width="stretch")
+            tipo = st.radio(
+                "Selecciona tipo de caso",
+                ("🟢 Sin tumor", "🔴 Con tumor"),
+                horizontal=True,
+                index=0,
+                width="stretch",
+            )
 
         if tipo == "🔴 Con tumor":
             active_rows = tumor_rows
@@ -472,7 +480,7 @@ def page_cases():
         # Botón centrado
         bc1, bc2, bc3 = st.columns([1, 2, 1])
         with bc2:
-            if st.button(boton_texto,use_container_width=True):
+            if st.button(boton_texto, use_container_width=True):
                 st.session_state[state_key] = random.randrange(len(active_rows))
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -547,11 +555,11 @@ def page_cases():
             # ejemplo sin tumor: una única RM; la máscara está ya implícita (vacía)
             img_mri = Image.open(current_path).convert("RGB")
 
-
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<h5 style='text-align:center'>RMI images original (sin tumor)</h5>",unsafe_allow_html=True,)
-
-                
+            st.markdown(
+                "<h5 style='text-align:center'>RMI images original (sin tumor)</h5>",
+                unsafe_allow_html=True,
+            )
 
             # En ambos casos se muestra la misma imagen, porque no hay tumor
             st.image(img_mri, use_column_width=False)
