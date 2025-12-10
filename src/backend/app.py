@@ -190,6 +190,7 @@ def health():
 # CLASIFICACIÓN
 
 
+
 @app.route("/clasificacion/predict", methods=["GET", "POST"])
 def clasificacion_predict():
     if request.method == "GET":
