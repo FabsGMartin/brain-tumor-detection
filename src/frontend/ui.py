@@ -14,10 +14,6 @@ import base64
 import io
 import numpy as np
 import random
-from dotenv import load_dotenv
-
-# Cargar variables de entorno
-load_dotenv()
 
 # Configurar logging
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
