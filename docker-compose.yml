@@ -1,0 +1,27 @@
+services:
+  backend:
+    build: .
+    container_name: mri-backend
+    command: python src/backend/app.py
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./src/backend/models:/app/src/backend/models
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  frontend:
+    build: .
+    container_name: mri-frontend
+    command: streamlit run src/frontend/ui.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - API_URL=http://backend:5000
+      - AWS_DEFAULT_REGION=us-east-1
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - backend
