@@ -15,11 +15,9 @@ import random
 
 # ---------- PATH CONSTANTS ----------
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = (
-    BASE_DIR.parent.parent / "data"
-)  # Subir dos niveles: frontend -> src -> raíz -> data
+DATA_DIR = BASE_DIR.parent / "data"
 IMAGES_DIR = BASE_DIR / "img"
-VIDEO_PATH = BASE_DIR / "video.mp4"
+VIDEO_PATH = BASE_DIR / "video" / "flask_demo.mp4"
 
 # CSV files
 ROUTE_LABEL_CSV = DATA_DIR / "route_label.csv"
@@ -429,11 +427,7 @@ def page_cases():
     no_tumor_rows = sorted(rows_dir.glob("no_tumor*.png"))
 
     if not tumor_rows and not no_tumor_rows:
-        st.error(
-            "No se han encontrado imágenes ni `row_*.png` (con tumor) "
-            "ni `example_no_tumor*.png` (sin tumor) en la carpeta "
-            f"`{rows_dir}`."
-        )
+        st.error("Images Not found (0 and 1)")
         return
 
     # =========================
@@ -443,32 +437,31 @@ def page_cases():
     with center:
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Primero SIN tumor, luego CON tumor
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             tipo = st.radio(
-                "Selecciona tipo de caso",
-                ("🟢 Sin tumor", "🔴 Con tumor"),
+                "Show a case example: ",
+                ("🟢 Without tumor", "🔴 With tumor"),
                 horizontal=True,
                 index=0,
                 width="stretch",
             )
 
-        if tipo == "🔴 Con tumor":
+        if tipo == "🔴 With tumor":
             active_rows = tumor_rows
             state_key = "random_row_idx_tumor"
-            boton_texto = "🔀 Mostrar otro caso con tumor"
-            titulo_prefix = "Caso"
-            subtitulo_suffix = "tumor cerebral segmentado"
+            boton_texto = "🔀 Show another tumor MRI image"
+            titulo_prefix = "Cancer Patient"
+            subtitulo_suffix = "Tumor RMI image"
         else:
             active_rows = no_tumor_rows
             state_key = "random_row_idx_no_tumor"
-            boton_texto = "🔀 Mostrar otro caso sano"
-            titulo_prefix = "Caso sano"
-            subtitulo_suffix = "RM sin tumor visible"
+            boton_texto = "🔀 Show another healthy patient MRI image"
+            titulo_prefix = "Healthy Patient"
+            subtitulo_suffix = "No tumor RMI image"
 
         if not active_rows:
-            if tipo == "🔴 Con tumor":
+            if tipo == "🔴 With tumor":
                 st.warning("Tumor images not found")
             else:
                 st.warning("No tumor images not fount")
@@ -477,7 +470,6 @@ def page_cases():
         if state_key not in st.session_state:
             st.session_state[state_key] = 0
 
-        # Botón centrado
         bc1, bc2, bc3 = st.columns([1, 2, 1])
         with bc2:
             if st.button(boton_texto, use_container_width=True):
@@ -499,44 +491,17 @@ def page_cases():
         st.markdown("<br>", unsafe_allow_html=True)
 
         # =========================
-        # Mostrar imágenes
+        # Show images
         # =========================
+
         if tipo == "🔴 Con tumor":
             # fila row_XX con 3 columnas en una misma imagen
             img_row = Image.open(current_path)
-            w, h = img_row.size
-            col_w = w // 3
-
-            img_mri = img_row.crop((0, 0, col_w, h))
-            img_mask = img_row.crop((col_w, 0, 2 * col_w, h))
-            img_mri_mask = img_row.crop((2 * col_w, 0, w, h))
-
-            c1, c2, c3 = st.columns(3)
-
-            with c1:
-                st.markdown(
-                    "<h5 style='text-align:center'>RM original</h5>",
-                    unsafe_allow_html=True,
-                )
-                st.image(img_mri, use_container_width=True)
-
-            with c2:
-                st.markdown(
-                    "<h5 style='text-align:center'>Máscara de tumor</h5>",
-                    unsafe_allow_html=True,
-                )
-                st.image(img_mask, use_container_width=True)
-
-            with c3:
-                st.markdown(
-                    "<h5 style='text-align:center'>RM con máscara</h5>",
-                    unsafe_allow_html=True,
-                )
-                st.image(img_mri_mask, use_container_width=True)
-
-            # 🧠 Descripción clínico–analítica en inglés (con tumor)
+            st.image(img_row, use_container_width=True)
             st.markdown(
                 """
+                <br></br>
+
                 #### Clinical / data analyst interpretation (with tumor)
 
                 - **Region of interest:** a focal hyperintense lesion is visible within the brain
@@ -548,25 +513,18 @@ def page_cases():
                 - **From a data point of view:** this slice would be labelled as a **positive
                   sample**, and the mask provides dense supervision for training segmentation
                   models (Dice, IoU, pixel-wise accuracy, etc.).
-                """
-            )
-
-        else:
-            # ejemplo sin tumor: una única RM; la máscara está ya implícita (vacía)
-            img_mri = Image.open(current_path).convert("RGB")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                "<h5 style='text-align:center'>RMI images original (sin tumor)</h5>",
+                """,
                 unsafe_allow_html=True,
             )
 
-            # En ambos casos se muestra la misma imagen, porque no hay tumor
-            st.image(img_mri, use_column_width=False)
-
-            # 🧼 Descripción clínico–analítica en inglés (sin tumor)
+        else:
+            img_mri = Image.open(current_path).convert("RGB")
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.image(img_mri, use_container_width=False)
             st.markdown(
                 """
+                <br></br>
+
                 #### Clinical / data analyst interpretation (no visible tumor)
 
                 - **Overall impression:** normal-appearing brain MRI for this slice, with
@@ -578,93 +536,114 @@ def page_cases():
                 - **Expected behavior:** the model should assign low tumor probability to
                   all pixels in this image. Any high activation here would be a potential
                   false positive.
-                """
+                """,
+                unsafe_allow_html=True,
             )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        if tipo == "🔴 Con tumor":
-            note_text = (
-                "Nota: estos son ejemplos de cortes 2D con tumor. En la práctica se analizan "
-                "volúmenes 3D y múltiples secuencias (T1, T2, FLAIR, contraste), junto con "
-                "la historia clínica."
-            )
-        else:
-            note_text = (
-                "Nota: en estos casos no hay tumor en el corte mostrado. La 'máscara' es vacía, "
-                "por lo que la RM con y sin máscara se ven iguales. Compararlos con los casos "
-                "con tumor ayuda a entrenar y validar el modelo."
-            )
-
-        st.markdown(
-            f"<p style='text-align:center; font-size:0.9rem;'>{note_text}</p>",
-            unsafe_allow_html=True,
-        )
 
 
 def page_model():
     st.header("🧬 Deep learning model")
     st.markdown(
-        """
-        In a real hospital workflow, such a model would typically act as a
-        **decision-support tool** or “second reader”. It can:
-        - Highlight suspicious regions that deserve closer inspection.
-        - Provide quantitative measurements (e.g. tumor volume).
-        - Help standardize reports across radiologists.
-        Final responsibility for diagnosis and treatment decisions always remains
-        with the clinical team.
-
-        """
+        '<h3 style="text-align: center;color: black;"> <b> General Pipeline </b></h3>',
+        unsafe_allow_html=True,
     )
-
-    st.markdown("## General architecture")
+    a, b, c = st.columns(3)
+    with b:
+        st.image(IMAGES_DIR / "general_pipeline.png", use_container_width=True)
+    st.markdown(
+        '<br></br> <h3 style="text-align: center;color: black;"> <b> ResNet-50 Classification Model Architecture </b></h3>',
+        unsafe_allow_html=True,
+    )
     st.markdown(
         """
-        Our medical AI system is based on a **deep learning model** that operates on
-        brain MRI slices.
+For the classification stage of this project, we use **ResNet-50**, a deep convolutional neural network introduced in the paper [*“Deep Residual Learning for Image Recognition”* (He et al., 2015)](https://arxiv.org/pdf/1512.03385.pdf).
 
-        At a high level, the pipeline is:
+ResNet-50 belongs to the family of **Residual Networks (ResNets)**, whose key innovation is the use of **residual (skip) connections**. These connections allow the model to learn residual functions instead of full mappings, which solves two major problems of very deep networks: vanishing gradients and training degradation.
 
-        1. **Input**: MRI image (normalized and resized).
-        2. **Neural network** (e.g. U-Net or CNN):
-           - Extracts visual patterns (edges, textures, hyperintense regions...).
-           - Learns to distinguish between healthy tissue and tumor tissue.
-        3. **Output**:
-           - A **class prediction**: tumor / no tumor.
-           - Optionally, a **segmentation mask** highlighting tumor pixels.
-        """
+A typical residual block applies several convolutional layers to the input and then adds the original input back to the block output:
+
+output = F(x) + x
+
+This design helps preserve gradient flow and stabilizes training when the network is very deep.
+- Architecturally, ResNet-50 consists of 50 layers arranged in several stages. It uses a “bottleneck” block structure: a 1×1 convolution to reduce dimensionality, a 3×3 convolution, and another 1×1 convolution to restore dimensionality — allowing efficient parameter usage while maintaining depth.
+- Thanks to its design, ResNet-50 has proven extremely effective in large-scale image recognition tasks (e.g. ImageNet), and has become a standard backbone for many computer vision tasks, including medical image analysis.
+
+In our context, classification (or feature extraction) over MRI images of low-grade gliomas, ResNet-50 gives us a robust, well-tested backbone: its residual learning capability helps with training stability, even with relatively deep layers; its feature representations are rich and suitable for transfer learning and fine-tuning on medical data; and its architecture is widely accepted in literature, which helps with reproducibility and comparability of our results.
+
+<br></br>
+
+ <div style="text-align: center;">
+
+![](https://www.researchgate.net/profile/Master-Prince/publication/350421671/figure/fig1/AS:1005790324346881@1616810508674/An-illustration-of-ResNet-50-layers-architecture.png)
+
+ </div>
+
+ <br></br>
+<br></br> <h3 style="text-align: center;color: black;"> <b> ResUNet Segmentation Model Architecture </b></h3>
+
+
+Building upon the concepts previously introduced with **ResNet-50**, ResUNet represents a natural evolution of deep convolutional networks for image segmentation tasks. While ResNet-50 demonstrated how *residual connections* enable the training of very deep models by facilitating stable gradient flow, ResUNet integrates these same principles into the classic **U-Net encoder–decoder structure**, creating a model that is both deep and highly effective at capturing fine-grained spatial information. The ResUNet Architecture was first described in [Z. Zhang et al. 2017](https://arxiv.org/pdf/1711.10684.pdf)
+
+
+##### **How ResUNet Extends the Ideas of ResNet-50?**
+
+ResUNet incorporates *residual blocks* throughout its architecture, mirroring the philosophy behind ResNet-50:
+
+- Residual connections allow the model to learn identity mappings more easily.
+- They reduce vanishing gradients and support deeper, more expressive feature extractors.
+- They promote efficient training, especially when datasets are limited.
+
+By embedding these residual blocks inside the U-Net structure, ResUNet achieves a strong balance between **feature depth** and **spatial precision**, which is crucial for segmentation tasks.
+
+
+##### **Core Components of the ResUNet Architecture**
+
+1. **Encoder with Residual Blocks**
+   The encoder operates similarly to ResNet-style feature extraction. Each stage includes residual convolutional blocks that progressively downsample the spatial resolution while increasing feature richness. These blocks stabilize training and enable the model to capture high-level semantics.
+
+2. **Bottleneck Layer**
+   At the deepest level, the network aggregates global context. Residual connections continue to support gradient flow even at this highly compressed representation.
+
+3. **Decoder with Skip Connections**
+   The decoder mirrors the encoder but performs upsampling to recover spatial structure. Standard U-Net skip connections bridge encoder and decoder levels, ensuring the model retains fine details lost during downsampling.
+
+4. **Residual Refinement**
+   Each decoder stage incorporates residual blocks, allowing the model to refine and correct features as they are upsampled. This combination of residual learning + multi-scale fusion is one of the key strengths of ResUNet.
+
+5. **Final Segmentation Layer**
+   A final convolutional layer maps the decoded features to pixel-wise class probabilities, producing a dense segmentation mask.
+
+<br></br>
+
+ <div style="text-align: center;">
+
+![](https://idiotdeveloper.com/wp-content/uploads/2021/02/arch.png)
+
+</div>
+
+<br></br>
+
+##### **Why ResUNet Is Effective for Segmentation?**
+
+ResUNet is particularly advantageous because it unifies:
+
+- **Deep semantic feature extraction** (thanks to residual blocks, much like in ResNet-50)
+- **Precise spatial localization** (enabled by the U-Net skip connections)
+- **Stable and efficient training**, even with limited data
+- **Flexibility in depth and complexity**, allowing adaptations for various modalities (e.g., medical imaging, remote sensing)
+
+This makes ResUNet a powerful architecture for tasks where accurate object boundaries and contextual understanding are both essential.
+
+
+
+        """,
+        unsafe_allow_html=True,
     )
 
     st.markdown(
-        """
-        Although this demo focuses on 2D slices, many research systems work with:
-        - **3D convolutions**, which exploit volumetric context across slices.
-        - **Multi-sequence input** (T1, T1+contrast, T2, FLAIR) stacked as channels.
-        - **Multimodal fusion**, combining imaging with clinical variables
-          (age, performance status, molecular markers) or even genomics.
-        This richer input can improve performance for tasks such as grading or prognosis.
-        """
+        '<br></br> <h3 style="text-align: center;color: black;"> <b> Data preprocessing and quality control </b></h3>',
+        unsafe_allow_html=True,
     )
-
-    st.markdown("## Training (summary)")
-    st.markdown(
-        """
-        - **Data**: MRI dataset with tumor annotations.
-        - **Labels**:
-          - For classification: `0` = no tumor, `1` = tumor.
-          - For segmentation: masks where each pixel indicates tumor/no tumor.
-        - **Procedure**:
-          - Split into *train / validation / test*.
-          - Train for several epochs minimizing a loss function
-            (for example, *Binary Cross-Entropy* for classification or
-            *Dice loss* for segmentation).
-        - **Typical metrics**:
-          - Classification: accuracy, F1, sensitivity, specificity.
-          - Segmentation: Dice coefficient, IoU.
-        """
-    )
-
-    st.markdown("## Data preprocessing and quality control")
     st.markdown(
         """
         Before training any medical imaging model, a robust preprocessing pipeline is essential:
@@ -679,22 +658,76 @@ def page_model():
         """
     )
 
-    st.markdown("## Evaluation and clinical interpretation")
+    st.markdown(
+        '<br></br> <h4 style="text-align: center;color: black;"> <b> Training (summary) </b></h4>',
+        unsafe_allow_html=True,
+    )
     st.markdown(
         """
-        Beyond global metrics, clinicians and data scientists typically:
-        - Inspect **ROC and precision-recall curves** to select thresholds that balance
-          sensitivity (avoiding missed tumors) and specificity (avoiding unnecessary alarms).
-        - Use **calibration curves** to verify that predicted probabilities correspond
-          to actual risk, which is crucial when communicating risk to patients.
-        - Analyze **confusion matrices** stratified by subgroups (age, sex, scanner type,
-          tumor location) to detect potential bias.
-        - Compare performance with human experts in **reader studies** and investigate
-          cases where the model disagrees with the radiologist.
-        - Perform **external validation** on data from other hospitals to test
-          generalization beyond the training cohort.
+        - **Data**: MRI dataset with tumor annotations.
+        - **Labels**:
+          - For classification: `0` = no tumor, `1` = tumor.
+          - For segmentation: masks where each pixel indicates tumor/no tumor.
+        - **Procedure**:
+          - Split into *train / validation / test*.
+          - Train for several epochs minimizing a loss function
+            (*Binary Cross-Entropy (BCE) * for classification or
+            *Dice-BCE loss* for segmentation).
+        - **Metrics**:
+          - Classification: accuracy, F1, precision and recall scores.
+          - Segmentation: dice coefficient, intersection over union, accuracy.
         """
     )
+
+    st.markdown(
+        '<br></br> <h3 style="text-align: center;color: black;"> <b> Model Evaluation </b></h3>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("##### **ResNet-50 Classification Model**")
+    A, B, C, D = st.columns([1, 4, 4, 1], gap="medium", vertical_alignment="center")
+    with B:
+        with st.container(border=True):
+            st.image(
+                IMAGES_DIR / "confusion_matrix_classification.png",
+                use_container_width=True,
+            )
+    with C:
+        with st.container(border=True):
+            st.image(
+                IMAGES_DIR / "ROC_curve_classification.png", use_container_width=True
+            )
+    a, b, c, d, e, f = st.columns(
+        [1, 2, 2, 2, 2, 1], gap="large", vertical_alignment="center"
+    )
+    with b:
+        with st.container(border=True):
+            st.metric("Accuracy", "98.61%")
+    with c:
+        with st.container(border=True):
+            st.metric("Precision", "97.84%")
+    with d:
+        with st.container(border=True):
+            st.metric("Recall", "97.84%")
+    with e:
+        with st.container(border=True):
+            st.metric("F1 score", "97.84%")
+
+    st.markdown("##### **ResUNet Segmentation Model**")
+    a, b, c, d, e, f = st.columns(
+        [1, 2, 2, 2, 2, 1], gap="large", vertical_alignment="center"
+    )
+    with b:
+        with st.container(border=True):
+            st.metric("Accuracy", "99.25%")
+    with c:
+        with st.container(border=True):
+            st.metric("Dice Coefficient", "84.58%")
+    with d:
+        with st.container(border=True):
+            st.metric("Intersection over Union (IoU)", "73.38%")
+    with e:
+        with st.container(border=True):
+            st.metric("Dice-BCE Loss", "18.29%")
 
     st.markdown("## Integration with Flask")
     st.info(
@@ -717,7 +750,7 @@ def page_model():
     st.markdown(
         """
         In a production setting, this architecture would be complemented with:
-        - **Authentication and audit logs** to track who requested each prediction.
+        - **Audit logs** to track who requested each prediction.
         - **Versioning** of models and training datasets to ensure reproducibility.
         - **Monitoring** of latency, error rates and data drift to detect when
           the model may need to be re-evaluated or retrained.
@@ -845,28 +878,12 @@ def page_live_prediction():
 
 
 def page_media():
-    st.header("🎥 Visual demo")
+    st.header("🎥 Flask Backend Visual demo")
 
     st.subheader("Demo video of the app / model")
-    try:
-        with open(str(VIDEO_PATH), "rb") as video_file:
-            video_bytes = video_file.read()
-        st.video(video_bytes)
-    except Exception:
-        st.info(
-            f"Place a `video.mp4` file at `{VIDEO_PATH}` or update the path in the code."
-        )
-
-    st.markdown(
-        """
-        In an integrated hospital environment, a similar interface could be embedded
-        into the radiology workstation or electronic health record to:
-        - Visualize AI-generated segmentations directly on the clinician's screen.
-        - Provide structured summaries of tumor burden over time.
-        - Suggest standardized follow-up intervals according to risk.
-        For now, this demo focuses on showing the core concepts in an accessible way.
-        """
-    )
+    with open(str(VIDEO_PATH), "rb") as video_file:
+        video_bytes = video_file.read()
+    st.video(video_bytes)
 
 
 def page_collab():
@@ -1061,7 +1078,7 @@ menu = [
     "🧠 MRI Images Visualization",
     "🧬 Deep learning model",
     "🔍 Live prediction",
-    "🎥 Visual demo",
+    "🎥 Flask Backend Visual demo",
     "🤝 Collaboration",
     "👥 About the Authors",
 ]
@@ -1084,7 +1101,7 @@ elif choice == "🧬 Deep learning model":
     page_model()
 elif choice == "🔍 Live prediction":
     page_live_prediction()
-elif choice == "🎥 Visual demo":
+elif choice == "🎥 Flask Backend Visual demo":
     page_media()
 elif choice == "🤝 Collaboration":
     page_collab()
