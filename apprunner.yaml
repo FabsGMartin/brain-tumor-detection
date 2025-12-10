@@ -1,12 +1,21 @@
 version: 1.0
-runtime: docker
+runtime: python3
 build:
   commands:
+    pre-build:
+      - echo "Instalando dependencias del sistema..."
+      - apt-get update -y
+      - apt-get install -y libglib2.0-0 libsm6 libxext6 libxrender-dev libgl1
+      - rm -rf /var/lib/apt/lists/*
     build:
-      - echo "Building Docker image..."
+      - echo "Instalando dependencias Python..."
+      - pip install --upgrade pip
+      - pip install -r requirements-backend.txt
+      - echo "Creando directorio para modelos..."
+      - mkdir -p src/backend/models
 run:
-  runtime-version: latest
-  command: bash /app/start.sh
+  runtime-version: 3.9
+  command: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --log-level debug --capture-output src.backend.app:app
   network:
     port: 5000
     env: PORT
@@ -19,3 +28,5 @@ run:
       value: "1"
     - name: LOG_LEVEL
       value: "DEBUG"
+    - name: PYTHONPATH
+      value: "."
