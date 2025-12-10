@@ -1,0 +1,33 @@
+# Dockerfile temporal para simular el entorno de AWS App Runner
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copiar código del backend
+COPY src/backend ./src/backend
+COPY requirements-backend.txt .
+
+# Ejecutar los mismos comandos que App Runner
+RUN python --version && \
+    pip --version && \
+    mkdir -p src/backend/models && \
+    pip install --upgrade pip && \
+    pip install --no-cache-dir flask>=2.0.0 flask-cors>=4.0.0 gunicorn>=21.2.0 && \
+    pip install --no-cache-dir boto3>=1.28.0 python-dotenv>=1.0.0 && \
+    pip install --no-cache-dir numpy>=1.21.0 Pillow>=9.0.0 && \
+    pip install --no-cache-dir opencv-python-headless>=4.6.0 && \
+    pip install --no-cache-dir scikit-image>=0.19.0 tifffile>=2022.0.0 && \
+    pip install --no-cache-dir tensorflow-cpu>=2.13.0 && \
+    pip install --no-cache-dir python-json-logger>=2.0.7 && \
+    python -c "import flask; import tensorflow; import cv2; print('Dependencias críticas verificadas')" && \
+    ls -la src/backend/ && \
+    test -d src/backend/models
+
+# Verificar que la aplicación puede importarse
+RUN export PYTHONPATH="." && python -c "import src.backend.app; print('Aplicación importada correctamente')"
+
+# Exponer puerto
+EXPOSE 5000
+
+# Comando por defecto (solo para verificar que funciona)
+CMD ["python", "-c", "import src.backend.app; print('Build exitoso - La aplicación está lista')"]
