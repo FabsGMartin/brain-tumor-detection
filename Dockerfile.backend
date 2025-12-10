@@ -21,6 +21,10 @@ RUN pip install --no-cache-dir -r requirements-backend.txt
 # Copiar código del backend
 COPY src/backend ./src/backend
 
+# Copiar y hacer ejecutable el script de inicio
+COPY src/backend/start.sh ./start.sh
+RUN chmod +x ./start.sh
+
 # Crear directorio para modelos (se descargarán desde S3)
 RUN mkdir -p src/backend/models
 
@@ -37,5 +41,5 @@ ENV PYTHONUNBUFFERED=1
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:5000/health')"
 
-# Usar gunicorn para producción
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "src.backend.app:app"]
+# Usar script de inicio para producción
+CMD ["./start.sh"]

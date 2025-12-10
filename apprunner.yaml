@@ -6,7 +6,7 @@ build:
       - echo "Building Docker image..."
 run:
   runtime-version: latest
-  command: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --log-level debug src.backend.app:app
+  command: /app/start.sh
   network:
     port: 5000
     env: PORT

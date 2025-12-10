@@ -11,9 +11,18 @@ import tempfile
 # Cargar variables de entorno
 load_dotenv()
 
-# Configurar logging
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+# Configurar logging (consistente con app.py)
+import sys
+
+log_level = os.getenv("LOG_LEVEL", "INFO")
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
+    force=True,
+)
 logger = logging.getLogger(__name__)
+logger.debug(f"Módulo model.py - Nivel de logging: {log_level}")
 
 
 # Funciones para la segmentación
@@ -108,10 +117,10 @@ def download_from_s3(bucket_name, s3_key, local_path):
         logger.info(f"Modelo descargado exitosamente a {local_path}")
         return True
     except ClientError as e:
-        logger.error(f"Error descargando desde S3: {e}")
+        logger.error(f"Error descargando desde S3: {e}", exc_info=True)
         return False
     except Exception as e:
-        logger.error(f"Error inesperado descargando desde S3: {e}")
+        logger.error(f"Error inesperado descargando desde S3: {e}", exc_info=True)
         return False
 
 
@@ -137,10 +146,14 @@ def load_model_from_s3_or_local(model_name, model_key, custom_objects=None):
                 logger.info(f"¡Modelo {model_name} cargado desde S3!")
                 return model
             except Exception as e:
-                logger.warning(f"Error cargando modelo desde S3, intentando local: {e}")
+                logger.warning(
+                    f"Error cargando modelo desde S3, intentando local: {e}",
+                    exc_info=True,
+                )
 
     # Fallback: cargar desde archivo local
     local_path = MODELS_DIR / model_name
+    logger.debug(f"Buscando modelo local en: {local_path}")
     if local_path.exists():
         try:
             logger.info(f"Cargando modelo {model_name} desde archivo local...")
@@ -151,7 +164,9 @@ def load_model_from_s3_or_local(model_name, model_key, custom_objects=None):
             logger.info(f"¡Modelo {model_name} cargado desde archivo local!")
             return model
         except Exception as e:
-            logger.error(f"Error cargando modelo desde archivo local: {e}")
+            logger.error(
+                f"Error cargando modelo desde archivo local: {e}", exc_info=True
+            )
             return None
     else:
         logger.error(
@@ -164,21 +179,60 @@ def load_models():
     """Carga los modelos de clasificación y segmentación desde S3 o local"""
     global model_clasificacion, model_segmentacion
 
+    logger.info("=" * 60)
+    logger.info("Iniciando carga de modelos")
+    logger.info(f"S3_BUCKET: {S3_BUCKET}")
+    logger.info(f"MODELS_DIR: {MODELS_DIR}")
+    logger.info("=" * 60)
+
     # Cargar modelo de clasificación
-    model_clasificacion = load_model_from_s3_or_local(
-        MODEL_CLASSIFICATION_NAME,
-        f"{S3_MODELS_PREFIX.rstrip('/')}/{MODEL_CLASSIFICATION_NAME}",
-    )
+    logger.info(f"Cargando modelo de clasificación: {MODEL_CLASSIFICATION_NAME}")
+    try:
+        model_clasificacion = load_model_from_s3_or_local(
+            MODEL_CLASSIFICATION_NAME,
+            f"{S3_MODELS_PREFIX.rstrip('/')}/{MODEL_CLASSIFICATION_NAME}",
+        )
+        if model_clasificacion:
+            logger.info("✓ Modelo de clasificación cargado exitosamente")
+        else:
+            logger.error("✗ No se pudo cargar el modelo de clasificación")
+    except Exception as e:
+        logger.error(f"✗ Error cargando modelo de clasificación: {e}", exc_info=True)
+        model_clasificacion = None
 
     # Cargar modelo de segmentación
-    model_segmentacion = load_model_from_s3_or_local(
-        MODEL_SEGMENTATION_NAME,
-        f"{S3_MODELS_PREFIX.rstrip('/')}/{MODEL_SEGMENTATION_NAME}",
-        custom_objects=CUSTOM_OBJECTS,
+    logger.info(f"Cargando modelo de segmentación: {MODEL_SEGMENTATION_NAME}")
+    try:
+        model_segmentacion = load_model_from_s3_or_local(
+            MODEL_SEGMENTATION_NAME,
+            f"{S3_MODELS_PREFIX.rstrip('/')}/{MODEL_SEGMENTATION_NAME}",
+            custom_objects=CUSTOM_OBJECTS,
+        )
+        if model_segmentacion:
+            logger.info("✓ Modelo de segmentación cargado exitosamente")
+        else:
+            logger.error("✗ No se pudo cargar el modelo de segmentación")
+    except Exception as e:
+        logger.error(f"✗ Error cargando modelo de segmentación: {e}", exc_info=True)
+        model_segmentacion = None
+
+    logger.info("=" * 60)
+    logger.info(
+        f"Carga de modelos completada - Clasificación: {model_clasificacion is not None}, Segmentación: {model_segmentacion is not None}"
     )
+    logger.info("=" * 60)
 
     return model_clasificacion, model_segmentacion
 
 
-# Cargar modelos al importar el módulo
-load_models()
+# Cargar modelos al importar el módulo con manejo de errores
+try:
+    logger.info("Iniciando carga de modelos...")
+    load_models()
+    logger.info("Carga de modelos completada")
+except Exception as e:
+    logger.error(f"Error crítico cargando modelos: {e}", exc_info=True)
+    logger.warning(
+        "La aplicación continuará sin modelos. Los endpoints de predicción no funcionarán."
+    )
+    # No hacer raise para que la aplicación pueda iniciar aunque los modelos fallen
