@@ -16,8 +16,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 # Importar módulos locales
-from model import model_clasificacion, model_segmentacion
-from storage import S3PredictionStorage
+from src.backend.model import model_clasificacion, model_segmentacion
+from src.backend.storage import S3PredictionStorage
 
 # Cargar variables de entorno
 load_dotenv()
