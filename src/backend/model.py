@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 
@@ -40,9 +41,11 @@ CUSTOM_OBJECTS = {
     "iou_coef": iou_coef,
 }
 
-# Rutas de modelos
-MODEL_CLASIFICACION = "models/classifier-resnet-model-final.keras"
-MODEL_SEGMENTACION = "models/segmentation_ResUNet_final.keras"
+# ---------- PATH CONSTANTS ----------
+BASE_DIR = Path(__file__).resolve().parent
+MODELS_DIR = BASE_DIR / "models"
+MODEL_CLASIFICACION = MODELS_DIR / "classifier-resnet-model-final.keras"
+MODEL_SEGMENTACION = MODELS_DIR / "segmentation_ResUNet_final.keras"
 
 model_clasificacion = None
 model_segmentacion = None
@@ -52,16 +55,15 @@ def load_models():
     """Carga los modelos de clasificación y segmentación"""
     global model_clasificacion, model_segmentacion
 
-    # Obtener el directorio base (donde está este archivo)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_clas_path = os.path.join(base_dir, MODEL_CLASIFICACION)
-    model_seg_path = os.path.join(base_dir, MODEL_SEGMENTACION)
+    # Obtener las rutas completas a los modelos
+    model_clas_path = MODEL_CLASIFICACION
+    model_seg_path = MODEL_SEGMENTACION
 
     # Cargar modelo de clasificación
     try:
-        if os.path.exists(model_clas_path):
+        if model_clas_path.exists():
             print(f"Cargando modelo clasificación desde {model_clas_path}...")
-            model_clasificacion = load_model(model_clas_path)
+            model_clasificacion = load_model(str(model_clas_path))
             print("¡Modelo clasificación cargado!")
         else:
             print(f"ADVERTENCIA: No se encontró {model_clas_path}")
@@ -70,10 +72,10 @@ def load_models():
 
     # Cargar modelo de segmentación
     try:
-        if os.path.exists(model_seg_path):
+        if model_seg_path.exists():
             print(f"Cargando modelo segmentación desde {model_seg_path}...")
             model_segmentacion = load_model(
-                model_seg_path, custom_objects=CUSTOM_OBJECTS
+                str(model_seg_path), custom_objects=CUSTOM_OBJECTS
             )
             print("¡Modelo segmentación cargado!")
         else:

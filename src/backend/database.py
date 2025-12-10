@@ -1,14 +1,17 @@
 import sqlite3
+from pathlib import Path
 from flask import g
 
-DB_FILE = "hospital_data.db"
+# ---------- PATH CONSTANTS ----------
+BASE_DIR = Path(__file__).resolve().parent
+DB_FILE = BASE_DIR / "hospital_data.db"
 
 
 def get_db():
     """Obtiene la conexión a la base de datos"""
     db = getattr(g, "_database", None)
     if db is None:
-        db = g._database = sqlite3.connect(DB_FILE)
+        db = g._database = sqlite3.connect(str(DB_FILE))
         db.row_factory = sqlite3.Row
     return db
 

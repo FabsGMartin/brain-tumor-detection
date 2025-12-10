@@ -21,6 +21,26 @@ El objetivo es desplegar una app de segmentación de tumores antes del 10 de Dic
 
 Reglas de oro para no romper el proyecto. Asignad roles YA.
 
+### Estructura
+
+```
+proyecto-mri/
+├── .gitignore              # Ignora venv, __pycache__, datos pesados [cite: 56]
+├── README.md               # Esta documentación
+├── requirements.txt        # Librerías (versiones CPU para cloud)
+├── docker-compose.yml      # Orquestación de servicios
+├── Dockerfile              # Definición de la imagen
+├── src/
+│   ├── backend/            # Lógica del Servidor
+│   │   ├── app.py          # Definición de rutas Flask
+│   │   ├── model.py        # Carga del modelo .h5
+│   │   └── database.py     # Conexión SQLite
+│   └── frontend/           # Lógica de Usuario
+│       └── ui.py           # Interfaz Streamlit + Boto3 (S3)
+└── models/                 # Archivos del modelo entrenado
+
+```
+
 ### 👨‍🏫 Rol: SENIOR (Dueño del Repo)
 
 ```bash

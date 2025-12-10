@@ -4,6 +4,7 @@ import base64
 import random
 import glob
 from datetime import datetime
+from pathlib import Path
 from flask import Flask, request, jsonify
 from PIL import Image
 import io
@@ -23,9 +24,12 @@ app.teardown_appcontext(close_connection)
 # Inicializar base de datos
 init_db(app)
 
+# ---------- PATH CONSTANTS ----------
+BASE_DIR = Path(__file__).resolve().parent
+IMAGES_FOLDER = BASE_DIR.parent.parent / "Mini_base_datos"
+
 # Constantes
 TARGET_SIZE = (256, 256)
-IMAGES_FOLDER = "../Mini_base_datos"
 LABELS = ["No detectado (0)", "Detectado(1)"]
 
 # Preparación de imagen
@@ -158,7 +162,7 @@ def clasificacion_predict():
 
 @app.route("/clasificacion/predict/random", methods=["GET"])
 def clasificacion_predict_random():
-    all_files = glob.glob(os.path.join(IMAGES_FOLDER, "*.tif"))
+    all_files = glob.glob(str(IMAGES_FOLDER / "*.tif"))
     image_files = [f for f in all_files if "_mask" not in f]
 
     if not image_files:
@@ -259,7 +263,7 @@ def segmentacion_predict():
 
 @app.route("/segmentacion/predict/random", methods=["GET"])
 def segmentacion_predict_random():
-    all_files = glob.glob(os.path.join(IMAGES_FOLDER, "*.tif"))
+    all_files = glob.glob(str(IMAGES_FOLDER / "*.tif"))
     image_files = [f for f in all_files if "_mask" not in f]
 
     if not image_files:

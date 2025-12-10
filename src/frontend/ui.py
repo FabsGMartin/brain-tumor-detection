@@ -15,7 +15,7 @@ import random
 
 # ---------- PATH CONSTANTS ----------
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR.parent / "data"
+DATA_DIR = BASE_DIR.parent.parent / "data"
 IMAGES_DIR = BASE_DIR / "img"
 VIDEO_PATH = BASE_DIR / "video" / "flask_demo.mp4"
 
