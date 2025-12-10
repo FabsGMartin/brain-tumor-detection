@@ -4,8 +4,6 @@
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
 # website: http://jupyter.org/
-*.tif
-*.keras
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 
