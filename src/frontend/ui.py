@@ -853,7 +853,7 @@ def page_live_prediction():
     )
 
     uploaded_file = st.file_uploader(
-        "Upload an MRI image (PNG/JPG)", type=["png", "jpg", "jpeg"]
+        "Upload an MRI image (PNG/JPG)", type=["png", "jpg", "jpeg", "tif", "tiff"]
     )
 
     st.warning(
