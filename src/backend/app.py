@@ -40,7 +40,8 @@ CORS(app, origins=cors_origins, supports_credentials=True)
 logger.info(f"CORS configurado para origins: {cors_origins}")
 
 # Configuración S3
-S3_BUCKET = os.getenv("S3_BUCKET")
+# Ahora (busca uno o el otro):
+S3_BUCKET = os.getenv("S3_BUCKET") or os.getenv("BUCKET_NAME")
 S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/")
 S3_PREDICTIONS_PREFIX = os.getenv("S3_PREDICTIONS_PREFIX", "predictions/")
 
@@ -55,14 +56,30 @@ LABELS = ["No detectado (0)", "Detectado(1)"]
 # Configurar cliente S3 si está disponible
 s3_client = None
 storage = None
-if S3_BUCKET and os.getenv("AWS_ACCESS_KEY_ID"):
+if S3_BUCKET:
     try:
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
-        )
+        aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+        aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+        if aws_access_key and aws_secret_key:
+            # Desarrollo local: usar credenciales explícitas
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key,
+                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
+            )
+            logger.info("Cliente S3 configurado con credenciales explícitas")
+        else:
+            # Producción (App Runner): usar IAM role
+            s3_client = boto3.client(
+                "s3",
+                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
+            )
+            logger.info(
+                "Cliente S3 configurado con IAM role (credenciales automáticas)"
+            )
+
         logger.info(f"Cliente S3 configurado para bucket: {S3_BUCKET}")
 
         # Inicializar almacenamiento de predicciones

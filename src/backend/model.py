@@ -79,12 +79,29 @@ model_segmentacion = None
 def download_from_s3(bucket_name, s3_key, local_path):
     """Descarga un archivo desde S3 a una ruta local"""
     try:
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
-        )
+        aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+        aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+        if aws_access_key and aws_secret_key:
+            # Desarrollo local: usar credenciales explícitas
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key,
+                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
+            )
+            logger.info(
+                "Cliente S3 configurado con credenciales explícitas para descarga de modelos"
+            )
+        else:
+            # Producción (App Runner): usar IAM role
+            s3_client = boto3.client(
+                "s3",
+                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
+            )
+            logger.info(
+                "Cliente S3 configurado con IAM role (credenciales automáticas) para descarga de modelos"
+            )
 
         logger.info(f"Descargando {s3_key} desde S3 bucket {bucket_name}...")
         s3_client.download_file(bucket_name, s3_key, str(local_path))

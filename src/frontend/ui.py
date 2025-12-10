@@ -46,12 +46,28 @@ SEGMENTATION_ROUTES_LABELS_CSV_S3 = "segmentation_routes_labels.csv"
 s3_client = None
 if S3_BUCKET:
     try:
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
-        )
+        aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+        aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+        if aws_access_key and aws_secret_key:
+            # Desarrollo local: usar credenciales explícitas
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key,
+                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
+            )
+            logger.info("Cliente S3 configurado con credenciales explícitas (frontend)")
+        else:
+            # Producción (App Runner): usar IAM role
+            s3_client = boto3.client(
+                "s3",
+                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
+            )
+            logger.info(
+                "Cliente S3 configurado con IAM role (credenciales automáticas) (frontend)"
+            )
+
         logger.info(f"Cliente S3 configurado para bucket: {S3_BUCKET}")
     except Exception as e:
         logger.warning(f"No se pudo configurar cliente S3: {e}")
