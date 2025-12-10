@@ -9,7 +9,7 @@ build:
       - echo "Creando directorio para modelos..."
       - mkdir -p src/backend/models
 run:
-  runtime-version: 3.10
+  runtime-version: 3.11
   command: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --log-level debug --capture-output src.backend.app:app
   network:
     port: 5000
