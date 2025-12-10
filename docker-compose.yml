@@ -10,7 +10,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./src/backend/models:/app/src/backend/models
-      - ./src/backend/hospital_data.db:/app/src/backend/hospital_data.db
+      - ./src/backend:/app/src/backend
     env_file:
       - .env
     environment:
@@ -21,7 +21,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 90s
 
   frontend:
     build:

@@ -19,7 +19,7 @@ We developed a two-stage deep learning pipeline:
 │  ├─ backend/             # Flask API backend
 │  │  ├─ app.py           # Main Flask application
 │  │  ├─ model.py         # Model loading and S3 integration
-│  │  ├─ database.py      # SQLite database management
+│  │  ├─ storage.py       # S3 prediction storage management
 │  │  └─ models/          # Local model cache (models loaded from S3)
 │  └─ frontend/           # Streamlit frontend
 │     ├─ ui.py            # Main Streamlit application
@@ -42,8 +42,11 @@ The project uses a cloud-native architecture:
 
 - **Backend (AWS App Runner):** Flask API serving deep learning models, loading models and data from S3
 - **Frontend (Streamlit Community Cloud):** Interactive web interface connecting to the backend API
-- **Storage (AWS S3):** Models, data files (CSVs), and images stored in S3 buckets
-- **Database (SQLite):** Local SQLite for development (can be migrated to DynamoDB for production)
+- **Storage (AWS S3):** All data stored in S3 buckets:
+  - Models for inference
+  - Data files (CSVs)
+  - Prediction results and history (JSON files)
+  - Segmentation masks (PNG files)
 
 ## 🔧 Local Development
 
@@ -183,9 +186,10 @@ See `.env` for a complete list. Key variables:
 - **S3 Configuration:**
 
   - `S3_MODELS_BUCKET`: Bucket name for storing models
-  - `S3_DATA_BUCKET`: Bucket name for storing data files
+  - `S3_DATA_BUCKET`: Bucket name for storing data files and predictions
   - `S3_MODELS_PREFIX`: Prefix for models (default: `models/`)
   - `S3_DATA_PREFIX`: Prefix for data files (default: `data/`)
+  - `S3_PREDICTIONS_PREFIX`: Prefix for predictions storage (default: `predictions/`)
 
 - **Backend Configuration:**
 

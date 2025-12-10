@@ -17,7 +17,7 @@ from botocore.exceptions import ClientError
 
 # Importar módulos locales
 from model import model_clasificacion, model_segmentacion
-from database import get_db, init_db, close_connection
+from storage import S3PredictionStorage
 
 # Cargar variables de entorno
 load_dotenv()
@@ -26,7 +26,7 @@ load_dotenv()
 log_level = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(
     level=getattr(logging, log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -39,15 +39,10 @@ cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",")
 CORS(app, origins=cors_origins, supports_credentials=True)
 logger.info(f"CORS configurado para origins: {cors_origins}")
 
-# Registrar teardown handler
-app.teardown_appcontext(close_connection)
-
-# Inicializar base de datos
-init_db(app)
-
 # Configuración S3
 S3_DATA_BUCKET = os.getenv("S3_DATA_BUCKET")
 S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/")
+S3_PREDICTIONS_PREFIX = os.getenv("S3_PREDICTIONS_PREFIX", "predictions/")
 
 # ---------- PATH CONSTANTS ----------
 BASE_DIR = Path(__file__).resolve().parent
@@ -59,17 +54,29 @@ LABELS = ["No detectado (0)", "Detectado(1)"]
 
 # Configurar cliente S3 si está disponible
 s3_client = None
+storage = None
 if S3_DATA_BUCKET and os.getenv("AWS_ACCESS_KEY_ID"):
     try:
         s3_client = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
         )
         logger.info(f"Cliente S3 configurado para bucket: {S3_DATA_BUCKET}")
+
+        # Inicializar almacenamiento de predicciones
+        storage = S3PredictionStorage(
+            s3_client=s3_client,
+            bucket_name=S3_DATA_BUCKET,
+            prefix=S3_PREDICTIONS_PREFIX,
+        )
+        logger.info(
+            f"Almacenamiento de predicciones configurado con prefijo: {S3_PREDICTIONS_PREFIX}"
+        )
     except Exception as e:
         logger.warning(f"No se pudo configurar cliente S3: {e}")
+        logger.warning("Las predicciones no se guardarán sin configuración S3")
 
 # Preparación de imagen
 
@@ -80,7 +87,9 @@ def prepare_image(image_path_or_bytes, target):
         if isinstance(image_path_or_bytes, str):
             img = cv2.imread(image_path_or_bytes)
             if img is None:
-                raise ValueError(f"No se pudo cargar la imagen desde {image_path_or_bytes}")
+                raise ValueError(
+                    f"No se pudo cargar la imagen desde {image_path_or_bytes}"
+                )
         else:
             img_array = np.frombuffer(image_path_or_bytes, np.uint8)
             img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
@@ -141,23 +150,26 @@ def home():
 def health():
     """Health check endpoint para AWS App Runner"""
     try:
-        models_loaded = model_clasificacion is not None and model_segmentacion is not None
+        models_loaded = (
+            model_clasificacion is not None and model_segmentacion is not None
+        )
         s3_configured = s3_client is not None
-        
+        storage_configured = storage is not None
+
         status = "healthy" if models_loaded else "degraded"
-        
-        return jsonify({
-            "status": status,
-            "models_loaded": models_loaded,
-            "s3_configured": s3_configured,
-            "timestamp": datetime.now().isoformat()
-        }), 200 if models_loaded else 503
+
+        return jsonify(
+            {
+                "status": status,
+                "models_loaded": models_loaded,
+                "s3_configured": s3_configured,
+                "storage_configured": storage_configured,
+                "timestamp": datetime.now().isoformat(),
+            }
+        ), 200 if models_loaded else 503
     except Exception as e:
         logger.error(f"Error en health check: {e}")
-        return jsonify({
-            "status": "unhealthy",
-            "error": str(e)
-        }), 500
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
 
 # CLASIFICACIÓN
@@ -168,21 +180,19 @@ def clasificacion_predict():
     if request.method == "GET":
         prediction_id = request.args.get("id")
         if prediction_id:
-            db = get_db()
-            cursor = db.execute(
-                "SELECT * FROM predictions WHERE id = ? AND type = 'clasificacion'",
-                (prediction_id,),
-            )
-            row = cursor.fetchone()
-            if row:
+            if not storage:
+                return jsonify({"error": "Almacenamiento S3 no configurado"}), 503
+
+            prediction = storage.get_prediction(prediction_id, "clasificacion")
+            if prediction:
                 return jsonify(
                     {
-                        "id": row["id"],
-                        "type": row["type"],
-                        "date": row["date"],
-                        "filename": row["filename"],
-                        "predicted_class": row["predicted_class"],
-                        "confidence": f"{row['confidence']:.2%}",
+                        "id": prediction["id"],
+                        "type": prediction["type"],
+                        "date": prediction["date"],
+                        "filename": prediction["filename"],
+                        "predicted_class": prediction.get("predicted_class"),
+                        "confidence": f"{prediction.get('confidence', 0):.2%}",
                     }
                 )
             return jsonify({"error": "Predicción no encontrada"}), 404
@@ -205,7 +215,7 @@ def clasificacion_predict():
             image_file = request.files["image"]
             filename = image_file.filename or "upload"
             image_bytes = image_file.read()
-            
+
             # Validar que la imagen no esté vacía
             if len(image_bytes) == 0:
                 return jsonify({"error": "La imagen está vacía"}), 400
@@ -222,14 +232,20 @@ def clasificacion_predict():
         prob = float(np.max(preds))
         pred_label = LABELS[pred_idx]
 
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute(
-            "INSERT INTO predictions (type, date, filename, predicted_class, confidence) VALUES (?, ?, ?, ?, ?)",
-            ("clasificacion", datetime.now().isoformat(), filename, pred_label, prob),
-        )
-        db.commit()
-        prediction_id = cursor.lastrowid
+        # Guardar en S3 si está configurado
+        prediction_id = None
+        if storage:
+            try:
+                prediction_id = storage.save_prediction(
+                    prediction_type="clasificacion",
+                    filename=filename,
+                    predicted_class=pred_label,
+                    confidence=prob,
+                )
+                logger.info(f"Predicción guardada en S3 con ID: {prediction_id}")
+            except Exception as e:
+                logger.error(f"Error guardando predicción en S3: {e}")
+                # Continuar sin guardar si falla S3
 
         data.update(
             {
@@ -255,42 +271,50 @@ def clasificacion_predict_random():
     """Predicción aleatoria desde S3 o local"""
     try:
         image_files = []
-        
+
         # Intentar obtener imágenes desde S3
         if s3_client and S3_DATA_BUCKET:
             try:
                 prefix = f"{S3_DATA_PREFIX.rstrip('/')}/"
                 response = s3_client.list_objects_v2(
-                    Bucket=S3_DATA_BUCKET,
-                    Prefix=prefix
+                    Bucket=S3_DATA_BUCKET, Prefix=prefix
                 )
-                if 'Contents' in response:
+                if "Contents" in response:
                     image_files = [
-                        obj['Key'] for obj in response['Contents']
-                        if obj['Key'].endswith('.tif') and '_mask' not in obj['Key']
+                        obj["Key"]
+                        for obj in response["Contents"]
+                        if obj["Key"].endswith(".tif") and "_mask" not in obj["Key"]
                     ]
                     # Descargar imagen seleccionada
                     if image_files:
                         selected_key = random.choice(image_files)
                         temp_file = io.BytesIO()
-                        s3_client.download_fileobj(S3_DATA_BUCKET, selected_key, temp_file)
+                        s3_client.download_fileobj(
+                            S3_DATA_BUCKET, selected_key, temp_file
+                        )
                         temp_file.seek(0)
                         image_bytes = temp_file.read()
                         filename = os.path.basename(selected_key)
                     else:
-                        return jsonify({"error": "No se encontraron imágenes en S3"}), 404
+                        return jsonify(
+                            {"error": "No se encontraron imágenes en S3"}
+                        ), 404
                 else:
                     return jsonify({"error": "No se encontraron imágenes en S3"}), 404
             except Exception as e:
-                logger.warning(f"Error obteniendo imágenes desde S3: {e}, intentando local...")
+                logger.warning(
+                    f"Error obteniendo imágenes desde S3: {e}, intentando local..."
+                )
                 image_files = []
-        
+
         # Fallback: buscar imágenes locales
         if not image_files:
             # No hay carpeta local hardcodeada, retornar error
-            return jsonify({
-                "error": "No hay imágenes disponibles. Configure S3_DATA_BUCKET o proporcione una imagen."
-            }), 404
+            return jsonify(
+                {
+                    "error": "No hay imágenes disponibles. Configure S3_DATA_BUCKET o proporcione una imagen."
+                }
+            ), 404
 
         if not image_bytes:
             return jsonify({"error": "No se pudo obtener la imagen"}), 404
@@ -321,20 +345,21 @@ def segmentacion_predict():
     if request.method == "GET":
         prediction_id = request.args.get("id")
         if prediction_id:
-            db = get_db()
-            cursor = db.execute(
-                "SELECT * FROM predictions WHERE id = ? AND type = 'segmentacion'",
-                (prediction_id,),
-            )
-            row = cursor.fetchone()
-            if row:
+            if not storage:
+                return jsonify({"error": "Almacenamiento S3 no configurado"}), 503
+
+            prediction = storage.get_prediction(prediction_id, "segmentacion")
+            if prediction:
+                mask_b64 = prediction.get("mask_base64", "")
                 return jsonify(
                     {
-                        "id": row["id"],
-                        "type": row["type"],
-                        "date": row["date"],
-                        "filename": row["filename"],
-                        "mask_base64": f"data:image/png;base64,{row['mask_base64']}",
+                        "id": prediction["id"],
+                        "type": prediction["type"],
+                        "date": prediction["date"],
+                        "filename": prediction["filename"],
+                        "mask_base64": f"data:image/png;base64,{mask_b64}"
+                        if mask_b64
+                        else None,
                     }
                 )
             return jsonify({"error": "Segmentación no encontrada"}), 404
@@ -357,7 +382,7 @@ def segmentacion_predict():
             image_file = request.files["image"]
             filename = image_file.filename or "upload"
             image_bytes = image_file.read()
-            
+
             # Validar que la imagen no esté vacía
             if len(image_bytes) == 0:
                 return jsonify({"error": "La imagen está vacía"}), 400
@@ -373,14 +398,19 @@ def segmentacion_predict():
         mask = mask[0, :, :, 0]
         mask_b64 = mask_to_base64(mask)
 
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute(
-            "INSERT INTO predictions (type, date, filename, mask_base64) VALUES (?, ?, ?, ?)",
-            ("segmentacion", datetime.now().isoformat(), filename, mask_b64),
-        )
-        db.commit()
-        segmentation_id = cursor.lastrowid
+        # Guardar en S3 si está configurado
+        segmentation_id = None
+        if storage:
+            try:
+                segmentation_id = storage.save_prediction(
+                    prediction_type="segmentacion",
+                    filename=filename,
+                    mask_base64=mask_b64,
+                )
+                logger.info(f"Segmentación guardada en S3 con ID: {segmentation_id}")
+            except Exception as e:
+                logger.error(f"Error guardando segmentación en S3: {e}")
+                # Continuar sin guardar si falla S3
 
         data.update(
             {
@@ -407,34 +437,38 @@ def segmentacion_predict_random():
     try:
         image_bytes = None
         filename = None
-        
+
         # Intentar obtener imágenes desde S3
         if s3_client and S3_DATA_BUCKET:
             try:
                 prefix = f"{S3_DATA_PREFIX.rstrip('/')}/"
                 response = s3_client.list_objects_v2(
-                    Bucket=S3_DATA_BUCKET,
-                    Prefix=prefix
+                    Bucket=S3_DATA_BUCKET, Prefix=prefix
                 )
-                if 'Contents' in response:
+                if "Contents" in response:
                     image_files = [
-                        obj['Key'] for obj in response['Contents']
-                        if obj['Key'].endswith('.tif') and '_mask' not in obj['Key']
+                        obj["Key"]
+                        for obj in response["Contents"]
+                        if obj["Key"].endswith(".tif") and "_mask" not in obj["Key"]
                     ]
                     if image_files:
                         selected_key = random.choice(image_files)
                         temp_file = io.BytesIO()
-                        s3_client.download_fileobj(S3_DATA_BUCKET, selected_key, temp_file)
+                        s3_client.download_fileobj(
+                            S3_DATA_BUCKET, selected_key, temp_file
+                        )
                         temp_file.seek(0)
                         image_bytes = temp_file.read()
                         filename = os.path.basename(selected_key)
             except Exception as e:
                 logger.warning(f"Error obteniendo imágenes desde S3: {e}")
-        
+
         if not image_bytes:
-            return jsonify({
-                "error": "No hay imágenes disponibles. Configure S3_DATA_BUCKET o proporcione una imagen."
-            }), 404
+            return jsonify(
+                {
+                    "error": "No hay imágenes disponibles. Configure S3_DATA_BUCKET o proporcione una imagen."
+                }
+            ), 404
 
         processed_image = prepare_image(image_bytes, target=TARGET_SIZE)
         mask = model_segmentacion.predict(processed_image)
@@ -449,54 +483,56 @@ def segmentacion_predict_random():
         return jsonify({"error": str(e)}), 500
 
 
-# HISTORY (base de datos)
+# HISTORY (desde S3)
 
 
 @app.route("/history", methods=["GET"])
 def get_history():
-    db = get_db()
-    limit = request.args.get("limit", 10)
-    type_filter = request.args.get("type")
+    if not storage:
+        return jsonify({"error": "Almacenamiento S3 no configurado"}), 503
 
-    query = "SELECT id, type, date, filename, predicted_class, confidence, mask_base64 FROM predictions"
-    params = []
+    try:
+        limit = int(request.args.get("limit", 10))
+        type_filter = request.args.get("type")  # "clasificacion" o "segmentacion"
 
-    if type_filter:
-        query += " WHERE type = ?"
-        params.append(type_filter)
+        history = storage.get_history(limit=limit, prediction_type=type_filter)
 
-    query += " ORDER BY id DESC LIMIT ?"
-    params.append(limit)
+        # Formatear respuesta
+        formatted_history = []
+        for pred in history:
+            item = {
+                "id": pred["id"],
+                "type": pred["type"],
+                "date": pred["date"],
+                "filename": pred["filename"],
+            }
+            if pred["type"] == "clasificacion":
+                item["predicted_class"] = pred.get("predicted_class")
+                confidence = pred.get("confidence", 0)
+                item["confidence"] = (
+                    f"{confidence:.2%}"
+                    if isinstance(confidence, (int, float))
+                    else confidence
+                )
+            else:
+                mask_b64 = pred.get("mask_base64", "")
+                item["mask_base64"] = (
+                    f"data:image/png;base64,{mask_b64}" if mask_b64 else None
+                )
+            formatted_history.append(item)
 
-    cursor = db.execute(query, params)
-    rows = cursor.fetchall()
-
-    history = []
-    for row in rows:
-        item = {
-            "id": row["id"],
-            "type": row["type"],
-            "date": row["date"],
-            "filename": row["filename"],
-        }
-        if row["type"] == "clasificacion":
-            item["predicted_class"] = row["predicted_class"]
-            item["confidence"] = f"{row['confidence']:.2%}"
-        else:
-            item["mask_base64"] = (
-                f"data:image/png;base64,{row['mask_base64']}"
-                if row["mask_base64"]
-                else None
-            )
-        history.append(item)
-
-    return jsonify({"count": len(history), "data": history})
+        return jsonify({"count": len(formatted_history), "data": formatted_history})
+    except ValueError as e:
+        return jsonify({"error": f"Parámetro limit inválido: {e}"}), 400
+    except Exception as e:
+        logger.error(f"Error obteniendo historial: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "False").lower() == "true"
-    
+
     logger.info(f"Iniciando servidor Flask en {host}:{port} (debug={debug})")
     app.run(host=host, port=port, debug=debug)
