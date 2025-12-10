@@ -14,8 +14,6 @@ import base64
 import io
 import numpy as np
 import random
-import boto3
-from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -33,72 +31,20 @@ VIDEO_PATH = BASE_DIR / "video" / "flask_demo.mp4"
 
 # Configuración desde variables de entorno
 API_URL = os.getenv("API_URL", "http://localhost:5000")
-S3_BUCKET = os.getenv("S3_BUCKET")
-S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/")
 
-# CSV files
+# CSV files - rutas locales
 ROUTE_LABEL_CSV_LOCAL = DATA_DIR / "route_label.csv"
 SEGMENTATION_ROUTES_LABELS_CSV_LOCAL = DATA_DIR / "segmentation_routes_labels.csv"
-ROUTE_LABEL_CSV_S3 = "route_label.csv"
-SEGMENTATION_ROUTES_LABELS_CSV_S3 = "segmentation_routes_labels.csv"
-
-# Configurar cliente S3 si está disponible
-s3_client = None
-if S3_BUCKET:
-    try:
-        aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
-        aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-
-        if aws_access_key and aws_secret_key:
-            # Desarrollo local: usar credenciales explícitas
-            s3_client = boto3.client(
-                "s3",
-                aws_access_key_id=aws_access_key,
-                aws_secret_access_key=aws_secret_key,
-                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
-            )
-            logger.info("Cliente S3 configurado con credenciales explícitas (frontend)")
-        else:
-            # Producción (App Runner): usar IAM role
-            s3_client = boto3.client(
-                "s3",
-                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
-            )
-            logger.info(
-                "Cliente S3 configurado con IAM role (credenciales automáticas) (frontend)"
-            )
-
-        logger.info(f"Cliente S3 configurado para bucket: {S3_BUCKET}")
-    except Exception as e:
-        logger.warning(f"No se pudo configurar cliente S3: {e}")
 
 
-def load_csv_from_s3_or_local(csv_filename, s3_key=None):
-    """Carga un CSV desde S3 o desde archivo local (fallback)"""
-    if s3_client and S3_BUCKET:
-        try:
-            s3_path = s3_key or f"{S3_DATA_PREFIX.rstrip('/')}/{csv_filename}"
-            logger.info(f"Intentando cargar {csv_filename} desde S3: {s3_path}")
-            obj = s3_client.get_object(Bucket=S3_BUCKET, Key=s3_path)
-            df = pd.read_csv(io.BytesIO(obj["Body"].read()))
-            logger.info(f"CSV {csv_filename} cargado desde S3 exitosamente")
-            return df
-        except ClientError as e:
-            logger.warning(
-                f"Error cargando {csv_filename} desde S3: {e}, intentando local..."
-            )
-        except Exception as e:
-            logger.warning(
-                f"Error inesperado cargando {csv_filename} desde S3: {e}, intentando local..."
-            )
-
-    # Fallback: cargar desde archivo local
+def load_csv_local(csv_filename):
+    """Carga un CSV desde archivo local"""
     local_path = DATA_DIR / csv_filename
     if local_path.exists():
         logger.info(f"Cargando {csv_filename} desde archivo local: {local_path}")
         return pd.read_csv(str(local_path))
     else:
-        logger.error(f"CSV {csv_filename} no encontrado ni en S3 ni localmente")
+        logger.error(f"CSV {csv_filename} no encontrado localmente en {local_path}")
         return pd.DataFrame()  # Retornar DataFrame vacío si no se encuentra
 
 
@@ -153,10 +99,8 @@ st.markdown(
 
 # -----------DATAFRAME LOADING and ROUTES -------------
 
-df = load_csv_from_s3_or_local("route_label.csv", ROUTE_LABEL_CSV_S3)
-df_tumors = load_csv_from_s3_or_local(
-    "segmentation_routes_labels.csv", SEGMENTATION_ROUTES_LABELS_CSV_S3
-)
+df = load_csv_local("route_label.csv")
+df_tumors = load_csv_local("segmentation_routes_labels.csv")
 
 
 def call_flask_model(
@@ -370,7 +314,7 @@ def page_sources():
 
 def page_data():
     st.header("📊 Dataset Visualization")
-    df_routes = load_csv_from_s3_or_local("route_label.csv", ROUTE_LABEL_CSV_S3)
+    df_routes = load_csv_local("route_label.csv")
     if not df_routes.empty:
         df_routes = (
             df_routes.set_index(df_routes.columns[0])

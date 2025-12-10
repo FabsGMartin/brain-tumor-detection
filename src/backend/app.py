@@ -13,8 +13,6 @@ from PIL import Image
 import io
 import cv2
 from dotenv import load_dotenv
-import boto3
-from botocore.exceptions import ClientError
 
 # Configurar logging TEMPRANO para capturar errores de inicialización
 log_level = os.getenv("LOG_LEVEL", "INFO")
@@ -44,7 +42,7 @@ try:
     from src.backend.model import model_clasificacion, model_segmentacion
 
     logger.debug("Modelos importados correctamente")
-    from src.backend.storage import S3PredictionStorage
+    from src.backend.storage import LocalPredictionStorage
 
     logger.debug("Storage importado correctamente")
 except Exception as e:
@@ -70,63 +68,22 @@ except Exception as e:
     logger.error(f"Error configurando CORS: {e}", exc_info=True)
     raise
 
-# Configuración S3
-# Ahora (busca uno o el otro):
-S3_BUCKET = os.getenv("S3_BUCKET") or os.getenv("BUCKET_NAME")
-S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/")
-S3_PREDICTIONS_PREFIX = os.getenv("S3_PREDICTIONS_PREFIX", "predictions/")
-
 # ---------- PATH CONSTANTS ----------
 BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR.parent.parent / "data"
 
 # Constantes desde variables de entorno
 target_size_str = os.getenv("TARGET_SIZE", "256,256")
 TARGET_SIZE = tuple(map(int, target_size_str.split(",")))
 LABELS = ["No detectado (0)", "Detectado(1)"]
 
-# Configurar cliente S3 si está disponible
-s3_client = None
-storage = None
-if S3_BUCKET:
-    try:
-        aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
-        aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-
-        if aws_access_key and aws_secret_key:
-            # Desarrollo local: usar credenciales explícitas
-            s3_client = boto3.client(
-                "s3",
-                aws_access_key_id=aws_access_key,
-                aws_secret_access_key=aws_secret_key,
-                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
-            )
-            logger.info("Cliente S3 configurado con credenciales explícitas")
-        else:
-            # Producción (App Runner): usar IAM role
-            s3_client = boto3.client(
-                "s3",
-                region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-3"),
-            )
-            logger.info(
-                "Cliente S3 configurado con IAM role (credenciales automáticas)"
-            )
-
-        logger.info(f"Cliente S3 configurado para bucket: {S3_BUCKET}")
-
-        # Inicializar almacenamiento de predicciones
-        storage = S3PredictionStorage(
-            s3_client=s3_client,
-            bucket_name=S3_BUCKET,
-            prefix=S3_PREDICTIONS_PREFIX,
-        )
-        logger.info(
-            f"Almacenamiento de predicciones configurado con prefijo: {S3_PREDICTIONS_PREFIX}"
-        )
-    except Exception as e:
-        logger.warning(f"No se pudo configurar cliente S3: {e}", exc_info=True)
-        logger.warning("Las predicciones no se guardarán sin configuración S3")
-else:
-    logger.debug("S3_BUCKET no configurado, omitiendo configuración de S3")
+# Configurar almacenamiento local de predicciones
+try:
+    storage = LocalPredictionStorage()
+    logger.info("Almacenamiento local de predicciones configurado")
+except Exception as e:
+    logger.warning(f"No se pudo configurar almacenamiento local: {e}", exc_info=True)
+    storage = None
 
 # Log final de inicialización
 logger.info("=" * 60)
@@ -134,7 +91,8 @@ logger.info("Aplicación Flask inicializada correctamente")
 logger.info(
     f"Modelos cargados - Clasificación: {model_clasificacion is not None}, Segmentación: {model_segmentacion is not None}"
 )
-logger.info(f"S3 configurado: {s3_client is not None}, Storage: {storage is not None}")
+logger.info(f"Storage configurado: {storage is not None}")
+logger.info(f"Directorio de datos: {DATA_DIR}")
 logger.info("=" * 60)
 
 # Preparación de imagen
@@ -207,12 +165,11 @@ def home():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint para AWS App Runner"""
+    """Health check endpoint"""
     try:
         models_loaded = (
             model_clasificacion is not None and model_segmentacion is not None
         )
-        s3_configured = s3_client is not None
         storage_configured = storage is not None
 
         status = "healthy" if models_loaded else "degraded"
@@ -221,7 +178,6 @@ def health():
             {
                 "status": status,
                 "models_loaded": models_loaded,
-                "s3_configured": s3_configured,
                 "storage_configured": storage_configured,
                 "timestamp": datetime.now().isoformat(),
             }
@@ -240,7 +196,7 @@ def clasificacion_predict():
         prediction_id = request.args.get("id")
         if prediction_id:
             if not storage:
-                return jsonify({"error": "Almacenamiento S3 no configurado"}), 503
+                return jsonify({"error": "Almacenamiento local no configurado"}), 503
 
             prediction = storage.get_prediction(prediction_id, "clasificacion")
             if prediction:
@@ -291,7 +247,7 @@ def clasificacion_predict():
         prob = float(np.max(preds))
         pred_label = LABELS[pred_idx]
 
-        # Guardar en S3 si está configurado
+        # Guardar en almacenamiento local si está configurado
         prediction_id = None
         if storage:
             try:
@@ -301,10 +257,10 @@ def clasificacion_predict():
                     predicted_class=pred_label,
                     confidence=prob,
                 )
-                logger.info(f"Predicción guardada en S3 con ID: {prediction_id}")
+                logger.info(f"Predicción guardada localmente con ID: {prediction_id}")
             except Exception as e:
-                logger.error(f"Error guardando predicción en S3: {e}")
-                # Continuar sin guardar si falla S3
+                logger.error(f"Error guardando predicción localmente: {e}")
+                # Continuar sin guardar si falla
 
         data.update(
             {
@@ -327,52 +283,25 @@ def clasificacion_predict():
 
 @app.route("/clasificacion/predict/random", methods=["GET"])
 def clasificacion_predict_random():
-    """Predicción aleatoria desde S3 o local"""
+    """Predicción aleatoria desde archivos locales"""
     try:
-        image_files = []
+        # Buscar imágenes locales en el directorio de datos
+        image_files = list(DATA_DIR.glob("**/*.tif"))
+        # Filtrar máscaras
+        image_files = [f for f in image_files if "_mask" not in f.name]
 
-        # Intentar obtener imágenes desde S3
-        if s3_client and S3_BUCKET:
-            try:
-                prefix = f"{S3_DATA_PREFIX.rstrip('/')}/"
-                response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
-                if "Contents" in response:
-                    image_files = [
-                        obj["Key"]
-                        for obj in response["Contents"]
-                        if obj["Key"].endswith(".tif") and "_mask" not in obj["Key"]
-                    ]
-                    # Descargar imagen seleccionada
-                    if image_files:
-                        selected_key = random.choice(image_files)
-                        temp_file = io.BytesIO()
-                        s3_client.download_fileobj(S3_BUCKET, selected_key, temp_file)
-                        temp_file.seek(0)
-                        image_bytes = temp_file.read()
-                        filename = os.path.basename(selected_key)
-                    else:
-                        return jsonify(
-                            {"error": "No se encontraron imágenes en S3"}
-                        ), 404
-                else:
-                    return jsonify({"error": "No se encontraron imágenes en S3"}), 404
-            except Exception as e:
-                logger.warning(
-                    f"Error obteniendo imágenes desde S3: {e}, intentando local..."
-                )
-                image_files = []
-
-        # Fallback: buscar imágenes locales
         if not image_files:
-            # No hay carpeta local hardcodeada, retornar error
             return jsonify(
-                {
-                    "error": "No hay imágenes disponibles. Configure S3_BUCKET o proporcione una imagen."
-                }
+                {"error": "No se encontraron imágenes .tif en el directorio de datos"}
             ), 404
 
-        if not image_bytes:
-            return jsonify({"error": "No se pudo obtener la imagen"}), 404
+        # Seleccionar una imagen aleatoria
+        selected_file = random.choice(image_files)
+        filename = selected_file.name
+
+        # Leer la imagen
+        with open(selected_file, "rb") as f:
+            image_bytes = f.read()
 
         processed_image = prepare_image(image_bytes, target=TARGET_SIZE)
         preds = model_clasificacion.predict(processed_image)
@@ -401,7 +330,7 @@ def segmentacion_predict():
         prediction_id = request.args.get("id")
         if prediction_id:
             if not storage:
-                return jsonify({"error": "Almacenamiento S3 no configurado"}), 503
+                return jsonify({"error": "Almacenamiento local no configurado"}), 503
 
             prediction = storage.get_prediction(prediction_id, "segmentacion")
             if prediction:
@@ -453,7 +382,7 @@ def segmentacion_predict():
         mask = mask[0, :, :, 0]
         mask_b64 = mask_to_base64(mask)
 
-        # Guardar en S3 si está configurado
+        # Guardar en almacenamiento local si está configurado
         segmentation_id = None
         if storage:
             try:
@@ -462,10 +391,10 @@ def segmentacion_predict():
                     filename=filename,
                     mask_base64=mask_b64,
                 )
-                logger.info(f"Segmentación guardada en S3 con ID: {segmentation_id}")
+                logger.info(f"Segmentación guardada localmente con ID: {segmentation_id}")
             except Exception as e:
-                logger.error(f"Error guardando segmentación en S3: {e}")
-                # Continuar sin guardar si falla S3
+                logger.error(f"Error guardando segmentación localmente: {e}")
+                # Continuar sin guardar si falla
 
         data.update(
             {
@@ -488,38 +417,25 @@ def segmentacion_predict():
 
 @app.route("/segmentacion/predict/random", methods=["GET"])
 def segmentacion_predict_random():
-    """Segmentación aleatoria desde S3 o local"""
+    """Segmentación aleatoria desde archivos locales"""
     try:
-        image_bytes = None
-        filename = None
+        # Buscar imágenes locales en el directorio de datos
+        image_files = list(DATA_DIR.glob("**/*.tif"))
+        # Filtrar máscaras
+        image_files = [f for f in image_files if "_mask" not in f.name]
 
-        # Intentar obtener imágenes desde S3
-        if s3_client and S3_BUCKET:
-            try:
-                prefix = f"{S3_DATA_PREFIX.rstrip('/')}/"
-                response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
-                if "Contents" in response:
-                    image_files = [
-                        obj["Key"]
-                        for obj in response["Contents"]
-                        if obj["Key"].endswith(".tif") and "_mask" not in obj["Key"]
-                    ]
-                    if image_files:
-                        selected_key = random.choice(image_files)
-                        temp_file = io.BytesIO()
-                        s3_client.download_fileobj(S3_BUCKET, selected_key, temp_file)
-                        temp_file.seek(0)
-                        image_bytes = temp_file.read()
-                        filename = os.path.basename(selected_key)
-            except Exception as e:
-                logger.warning(f"Error obteniendo imágenes desde S3: {e}")
-
-        if not image_bytes:
+        if not image_files:
             return jsonify(
-                {
-                    "error": "No hay imágenes disponibles. Configure S3_BUCKET o proporcione una imagen."
-                }
+                {"error": "No se encontraron imágenes .tif en el directorio de datos"}
             ), 404
+
+        # Seleccionar una imagen aleatoria
+        selected_file = random.choice(image_files)
+        filename = selected_file.name
+
+        # Leer la imagen
+        with open(selected_file, "rb") as f:
+            image_bytes = f.read()
 
         processed_image = prepare_image(image_bytes, target=TARGET_SIZE)
         mask = model_segmentacion.predict(processed_image)
@@ -534,13 +450,13 @@ def segmentacion_predict_random():
         return jsonify({"error": str(e)}), 500
 
 
-# HISTORY (desde S3)
+# HISTORY (desde almacenamiento local)
 
 
 @app.route("/history", methods=["GET"])
 def get_history():
     if not storage:
-        return jsonify({"error": "Almacenamiento S3 no configurado"}), 503
+        return jsonify({"error": "Almacenamiento local no configurado"}), 503
 
     try:
         limit = int(request.args.get("limit", 10))

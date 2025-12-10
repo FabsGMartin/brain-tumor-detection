@@ -1,6 +1,6 @@
 """
-Módulo para almacenar y recuperar predicciones desde S3.
-Reemplaza la funcionalidad de SQLite con almacenamiento en S3.
+Módulo para almacenar y recuperar predicciones en almacenamiento local.
+Reemplaza la funcionalidad de S3 con almacenamiento en archivos locales.
 """
 
 import os
@@ -9,92 +9,86 @@ import uuid
 import logging
 import base64
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Dict, List, Any
-import boto3
-from botocore.exceptions import ClientError
-from io import BytesIO
 from PIL import Image
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
 
-class S3PredictionStorage:
-    """Maneja el almacenamiento de predicciones en S3."""
+class LocalPredictionStorage:
+    """Maneja el almacenamiento de predicciones en archivos locales."""
 
-    def __init__(self, s3_client, bucket_name: str, prefix: str = "predictions/"):
+    def __init__(self, base_dir: Optional[Path] = None, prefix: str = "predictions/"):
         """
-        Inicializa el almacenamiento de predicciones en S3.
+        Inicializa el almacenamiento de predicciones local.
 
         Args:
-            s3_client: Cliente boto3 de S3
-            bucket_name: Nombre del bucket S3
+            base_dir: Directorio base donde se guardarán las predicciones (default: src/backend/)
             prefix: Prefijo para las predicciones (default: "predictions/")
         """
-        self.s3_client = s3_client
-        self.bucket_name = bucket_name
+        if base_dir is None:
+            # Por defecto, usar el directorio del módulo
+            BASE_DIR = Path(__file__).resolve().parent
+            self.base_dir = BASE_DIR
+        else:
+            self.base_dir = Path(base_dir)
+
         self.prefix = prefix.rstrip("/") + "/"
-        self.index_key = f"{self.prefix}index.json"
-        self.index_cache = None
-        self.index_loaded = False
+        self.predictions_dir = self.base_dir / self.prefix
+        self.masks_dir = self.predictions_dir / "masks"
+        self.index_path = self.predictions_dir / "index.json"
 
-    def _get_prediction_key(self, prediction_type: str, prediction_id: str) -> str:
-        """Genera la clave S3 para una predicción."""
-        return f"{self.prefix}{prediction_type}/{prediction_id}.json"
+        # Crear directorios si no existen
+        self.predictions_dir.mkdir(parents=True, exist_ok=True)
+        self.masks_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_mask_key(self, prediction_id: str) -> str:
-        """Genera la clave S3 para una máscara."""
-        return f"{self.prefix}masks/{prediction_id}.png"
+        logger.info(f"Almacenamiento local configurado en: {self.predictions_dir}")
+
+    def _get_prediction_path(self, prediction_type: str, prediction_id: str) -> Path:
+        """Genera la ruta local para una predicción."""
+        type_dir = self.predictions_dir / prediction_type
+        type_dir.mkdir(parents=True, exist_ok=True)
+        return type_dir / f"{prediction_id}.json"
+
+    def _get_mask_path(self, prediction_id: str) -> Path:
+        """Genera la ruta local para una máscara."""
+        return self.masks_dir / f"{prediction_id}.png"
 
     def _load_index(self) -> Dict[str, Any]:
-        """Carga el índice de predicciones desde S3."""
-        if self.index_loaded and self.index_cache is not None:
-            return self.index_cache
-
-        try:
-            response = self.s3_client.get_object(
-                Bucket=self.bucket_name, Key=self.index_key
-            )
-            index_data = json.loads(response["Body"].read().decode("utf-8"))
-            self.index_cache = index_data
-            self.index_loaded = True
-            logger.debug(
-                f"Índice cargado desde S3: {len(index_data.get('predictions', []))} predicciones"
-            )
-            return index_data
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "NoSuchKey":
-                # Índice no existe aún, crear uno vacío
-                logger.info("Índice no existe, creando uno nuevo")
-                self.index_cache = {
-                    "predictions": [],
-                    "last_updated": datetime.now().isoformat(),
-                }
-                self.index_loaded = True
-                return self.index_cache
-            else:
-                logger.error(f"Error cargando índice desde S3: {e}")
+        """Carga el índice de predicciones desde archivo local."""
+        if self.index_path.exists():
+            try:
+                with open(self.index_path, "r", encoding="utf-8") as f:
+                    index_data = json.load(f)
+                logger.debug(
+                    f"Índice cargado: {len(index_data.get('predictions', []))} predicciones"
+                )
+                return index_data
+            except Exception as e:
+                logger.error(f"Error cargando índice: {e}")
                 raise
-        except Exception as e:
-            logger.error(f"Error inesperado cargando índice: {e}")
-            raise
+        else:
+            # Índice no existe aún, crear uno vacío
+            logger.info("Índice no existe, creando uno nuevo")
+            index_data = {
+                "predictions": [],
+                "last_updated": datetime.now().isoformat(),
+            }
+            return index_data
 
     def _save_index(self, index_data: Dict[str, Any]) -> None:
-        """Guarda el índice de predicciones en S3."""
+        """Guarda el índice de predicciones en archivo local."""
         try:
             index_data["last_updated"] = datetime.now().isoformat()
-            index_json = json.dumps(index_data, indent=2)
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=self.index_key,
-                Body=index_json.encode("utf-8"),
-                ContentType="application/json",
-            )
-            self.index_cache = index_data
+            with open(self.index_path, "w", encoding="utf-8") as f:
+                json.dump(index_data, f, indent=2, ensure_ascii=False)
             logger.debug(
-                f"Índice guardado en S3 con {len(index_data.get('predictions', []))} predicciones"
+                f"Índice guardado con {len(index_data.get('predictions', []))} predicciones"
             )
         except Exception as e:
-            logger.error(f"Error guardando índice en S3: {e}")
+            logger.error(f"Error guardando índice: {e}")
             raise
 
     def _add_to_index(self, prediction_metadata: Dict[str, Any]) -> None:
@@ -121,7 +115,7 @@ class S3PredictionStorage:
         mask_base64: Optional[str] = None,
     ) -> str:
         """
-        Guarda una predicción en S3.
+        Guarda una predicción en almacenamiento local.
 
         Args:
             prediction_type: "clasificacion" o "segmentacion"
@@ -145,23 +139,20 @@ class S3PredictionStorage:
         }
 
         # Guardar máscara por separado si es grande (>100KB en base64 ≈ 75KB reales)
-        mask_key = None
+        mask_path = None
         if mask_base64:
             mask_size_kb = len(mask_base64) / 1024
             if mask_size_kb > 75:  # Si es mayor a ~75KB, guardar como archivo separado
                 try:
                     mask_bytes = base64.b64decode(mask_base64)
-                    mask_key = self._get_mask_key(prediction_id)
+                    mask_path = self._get_mask_path(prediction_id)
 
-                    self.s3_client.put_object(
-                        Bucket=self.bucket_name,
-                        Key=mask_key,
-                        Body=mask_bytes,
-                        ContentType="image/png",
-                    )
-                    prediction_data["mask_key"] = mask_key
+                    with open(mask_path, "wb") as f:
+                        f.write(mask_bytes)
+
+                    prediction_data["mask_path"] = str(mask_path.relative_to(self.base_dir))
                     logger.info(
-                        f"Máscara grande guardada en S3: {mask_key} ({mask_size_kb:.1f}KB)"
+                        f"Máscara grande guardada: {mask_path} ({mask_size_kb:.1f}KB)"
                     )
                 except Exception as e:
                     logger.warning(
@@ -176,18 +167,13 @@ class S3PredictionStorage:
         if confidence is not None:
             prediction_data["confidence"] = confidence
 
-        # Guardar predicción en S3
-        prediction_key = self._get_prediction_key(prediction_type, prediction_id)
-        prediction_json = json.dumps(prediction_data, indent=2)
+        # Guardar predicción en archivo local
+        prediction_path = self._get_prediction_path(prediction_type, prediction_id)
 
         try:
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=prediction_key,
-                Body=prediction_json.encode("utf-8"),
-                ContentType="application/json",
-            )
-            logger.info(f"Predicción guardada en S3: {prediction_key}")
+            with open(prediction_path, "w", encoding="utf-8") as f:
+                json.dump(prediction_data, f, indent=2, ensure_ascii=False)
+            logger.info(f"Predicción guardada: {prediction_path}")
 
             # Añadir al índice
             index_metadata = {
@@ -195,20 +181,20 @@ class S3PredictionStorage:
                 "type": prediction_type,
                 "date": timestamp,
                 "filename": filename,
-                "key": prediction_key,
+                "path": str(prediction_path.relative_to(self.base_dir)),
             }
             if predicted_class:
                 index_metadata["predicted_class"] = predicted_class
             if confidence is not None:
                 index_metadata["confidence"] = confidence
-            if mask_key:
-                index_metadata["mask_key"] = mask_key
+            if mask_path:
+                index_metadata["mask_path"] = str(mask_path.relative_to(self.base_dir))
 
             self._add_to_index(index_metadata)
 
             return prediction_id
         except Exception as e:
-            logger.error(f"Error guardando predicción en S3: {e}")
+            logger.error(f"Error guardando predicción: {e}")
             raise
 
     def get_prediction(
@@ -224,39 +210,38 @@ class S3PredictionStorage:
         Returns:
             Diccionario con los datos de la predicción o None si no existe
         """
-        prediction_key = self._get_prediction_key(prediction_type, prediction_id)
+        prediction_path = self._get_prediction_path(prediction_type, prediction_id)
+
+        if not prediction_path.exists():
+            logger.debug(f"Predicción no encontrada: {prediction_path}")
+            return None
 
         try:
-            response = self.s3_client.get_object(
-                Bucket=self.bucket_name, Key=prediction_key
-            )
-            prediction_data = json.loads(response["Body"].read().decode("utf-8"))
+            with open(prediction_path, "r", encoding="utf-8") as f:
+                prediction_data = json.load(f)
 
             # Si la máscara está en un archivo separado, cargarla
-            if "mask_key" in prediction_data:
+            if "mask_path" in prediction_data:
                 try:
-                    mask_response = self.s3_client.get_object(
-                        Bucket=self.bucket_name, Key=prediction_data["mask_key"]
-                    )
-                    mask_bytes = mask_response["Body"].read()
-                    prediction_data["mask_base64"] = base64.b64encode(
-                        mask_bytes
-                    ).decode("utf-8")
+                    mask_full_path = self.base_dir / prediction_data["mask_path"]
+                    if mask_full_path.exists():
+                        with open(mask_full_path, "rb") as f:
+                            mask_bytes = f.read()
+                        prediction_data["mask_base64"] = base64.b64encode(
+                            mask_bytes
+                        ).decode("utf-8")
+                    else:
+                        logger.warning(
+                            f"Archivo de máscara no encontrado: {mask_full_path}"
+                        )
                 except Exception as e:
                     logger.warning(
-                        f"Error cargando máscara desde {prediction_data['mask_key']}: {e}"
+                        f"Error cargando máscara desde {prediction_data['mask_path']}: {e}"
                     )
 
             return prediction_data
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "NoSuchKey":
-                logger.debug(f"Predicción no encontrada: {prediction_key}")
-                return None
-            else:
-                logger.error(f"Error obteniendo predicción desde S3: {e}")
-                raise
         except Exception as e:
-            logger.error(f"Error inesperado obteniendo predicción: {e}")
+            logger.error(f"Error obteniendo predicción: {e}")
             return None
 
     def get_history(
@@ -297,6 +282,5 @@ class S3PredictionStorage:
         return result
 
     def invalidate_index_cache(self) -> None:
-        """Invalida la caché del índice, forzando una recarga."""
-        self.index_loaded = False
-        self.index_cache = None
+        """Método de compatibilidad - no hay caché en almacenamiento local."""
+        pass
