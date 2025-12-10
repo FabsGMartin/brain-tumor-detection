@@ -30,7 +30,8 @@ IMAGES_DIR = BASE_DIR / "img"
 VIDEO_PATH = BASE_DIR / "video" / "flask_demo.mp4"
 
 # Configuración desde variables de entorno
-API_URL = os.getenv("API_URL", "http://localhost:5000")
+# Busca la URL en la configuración de Streamlit Cloud
+API_URL = st.secrets["API_URL"]
 
 # CSV files - rutas locales
 ROUTE_LABEL_CSV_LOCAL = DATA_DIR / "route_label.csv"
