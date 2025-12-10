@@ -5,6 +5,8 @@ import pandas as pd
 import plotly.express as px
 from PIL import Image
 from pathlib import Path
+import os
+import logging
 
 # import datetime
 import requests
@@ -12,6 +14,16 @@ import base64
 import io
 import numpy as np
 import random
+import boto3
+from botocore.exceptions import ClientError
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Configurar logging
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger(__name__)
 
 # ---------- PATH CONSTANTS ----------
 BASE_DIR = Path(__file__).resolve().parent
@@ -19,9 +31,55 @@ DATA_DIR = BASE_DIR.parent.parent / "data"
 IMAGES_DIR = BASE_DIR / "img"
 VIDEO_PATH = BASE_DIR / "video" / "flask_demo.mp4"
 
+# Configuración desde variables de entorno
+API_URL = os.getenv("API_URL", "http://localhost:5000")
+S3_DATA_BUCKET = os.getenv("S3_DATA_BUCKET")
+S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/")
+
 # CSV files
-ROUTE_LABEL_CSV = DATA_DIR / "route_label.csv"
-SEGMENTATION_ROUTES_LABELS_CSV = DATA_DIR / "segmentation_routes_labels.csv"
+ROUTE_LABEL_CSV_LOCAL = DATA_DIR / "route_label.csv"
+SEGMENTATION_ROUTES_LABELS_CSV_LOCAL = DATA_DIR / "segmentation_routes_labels.csv"
+ROUTE_LABEL_CSV_S3 = "route_label.csv"
+SEGMENTATION_ROUTES_LABELS_CSV_S3 = "segmentation_routes_labels.csv"
+
+# Configurar cliente S3 si está disponible
+s3_client = None
+if S3_DATA_BUCKET:
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+        )
+        logger.info(f"Cliente S3 configurado para bucket: {S3_DATA_BUCKET}")
+    except Exception as e:
+        logger.warning(f"No se pudo configurar cliente S3: {e}")
+
+
+def load_csv_from_s3_or_local(csv_filename, s3_key=None):
+    """Carga un CSV desde S3 o desde archivo local (fallback)"""
+    if s3_client and S3_DATA_BUCKET:
+        try:
+            s3_path = s3_key or f"{S3_DATA_PREFIX.rstrip('/')}/{csv_filename}"
+            logger.info(f"Intentando cargar {csv_filename} desde S3: {s3_path}")
+            obj = s3_client.get_object(Bucket=S3_DATA_BUCKET, Key=s3_path)
+            df = pd.read_csv(io.BytesIO(obj['Body'].read()))
+            logger.info(f"CSV {csv_filename} cargado desde S3 exitosamente")
+            return df
+        except ClientError as e:
+            logger.warning(f"Error cargando {csv_filename} desde S3: {e}, intentando local...")
+        except Exception as e:
+            logger.warning(f"Error inesperado cargando {csv_filename} desde S3: {e}, intentando local...")
+    
+    # Fallback: cargar desde archivo local
+    local_path = DATA_DIR / csv_filename
+    if local_path.exists():
+        logger.info(f"Cargando {csv_filename} desde archivo local: {local_path}")
+        return pd.read_csv(str(local_path))
+    else:
+        logger.error(f"CSV {csv_filename} no encontrado ni en S3 ni localmente")
+        return pd.DataFrame()  # Retornar DataFrame vacío si no se encuentra
 
 # Image files
 KAGGLE_IMAGE = IMAGES_DIR / "kaggle.png"
@@ -74,23 +132,36 @@ st.markdown(
 
 # -----------DATAFRAME LOADING and ROUTES -------------
 
-df = pd.read_csv(str(ROUTE_LABEL_CSV))
-df_tumors = pd.read_csv(str(SEGMENTATION_ROUTES_LABELS_CSV))
+df = load_csv_from_s3_or_local("route_label.csv", ROUTE_LABEL_CSV_S3)
+df_tumors = load_csv_from_s3_or_local("segmentation_routes_labels.csv", SEGMENTATION_ROUTES_LABELS_CSV_S3)
 
 
-def call_flask_model(api_url: str, pil_image: Image.Image):
-    pil_image = pil_image.convert("RGB")
+def call_flask_model(api_url: str, pil_image: Image.Image, endpoint: str = "clasificacion"):
+    """
+    Llama al modelo Flask con una imagen PIL.
+    
+    Args:
+        api_url: URL base de la API
+        pil_image: Imagen PIL
+        endpoint: "clasificacion" o "segmentacion"
+    """
+    try:
+        pil_image = pil_image.convert("RGB")
 
-    buf = io.BytesIO()
-    pil_image.save(buf, format="PNG")
-    img_bytes = buf.getvalue()
-    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+        buf = io.BytesIO()
+        pil_image.save(buf, format="PNG")
+        img_bytes = buf.getvalue()
 
-    url = api_url.rstrip("/") + "/predict"
+        url = api_url.rstrip("/") + f"/{endpoint}/predict"
 
-    resp = requests.post(url, json={"image_base64": img_b64}, timeout=60)
-    resp.raise_for_status()
-    return resp.json()
+        files = {"image": ("image.png", img_bytes, "image/png")}
+        
+        resp = requests.post(url, files=files, timeout=60)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error llamando a la API: {e}")
+        raise
 
 
 def decode_mask_from_b64(mask_b64: str) -> np.ndarray:
@@ -274,7 +345,9 @@ def page_sources():
 
 def page_data():
     st.header("📊 Dataset Visualization")
-    df_routes = pd.read_csv(str(ROUTE_LABEL_CSV), index_col=0)
+    df_routes = load_csv_from_s3_or_local("route_label.csv", ROUTE_LABEL_CSV_S3)
+    if not df_routes.empty:
+        df_routes = df_routes.set_index(df_routes.columns[0]) if len(df_routes.columns) > 0 else df_routes
     tab_plots, tab_table = st.tabs(["📈 Plots", "📄 Table"])
 
     # ===== PLOTS =====
@@ -803,7 +876,13 @@ def page_live_prediction():
     )
 
     st.sidebar.markdown("### ⚙️ Flask API configuration")
-    api_url = st.sidebar.text_input("Base API URL", "http://localhost:8000")
+    api_url = st.sidebar.text_input("Base API URL", API_URL)
+    
+    endpoint_type = st.sidebar.selectbox(
+        "Tipo de predicción",
+        ["clasificacion", "segmentacion"],
+        index=0
+    )
 
     uploaded_file = st.file_uploader(
         "Upload an MRI image (PNG/JPG)", type=["png", "jpg", "jpeg"]
@@ -825,56 +904,76 @@ def page_live_prediction():
         if st.button("Analyze MRI"):
             with st.spinner("Querying Flask model..."):
                 try:
-                    response = call_flask_model(api_url, pil_img)
+                    response = call_flask_model(api_url, pil_img, endpoint=endpoint_type)
+                except requests.exceptions.ConnectionError:
+                    st.error(f"❌ No se pudo conectar a la API en {api_url}. Verifica que el backend esté ejecutándose.")
+                    return
+                except requests.exceptions.Timeout:
+                    st.error("⏱️ La solicitud tardó demasiado. Intenta con una imagen más pequeña.")
+                    return
                 except Exception as e:
-                    st.error(f"Error calling the API: {e}")
+                    st.error(f"❌ Error llamando a la API: {e}")
+                    logger.error(f"Error en page_live_prediction: {e}")
                     return
 
             st.markdown("### Model result")
 
-            has_tumor = response.get("has_tumor", None)
-            prob = response.get("probability", None)
+            if not response.get("success", False):
+                st.error(f"La API retornó un error: {response.get('error', 'Error desconocido')}")
+                return
 
-            if has_tumor is None or prob is None:
-                st.error(
-                    "The API response does not contain the expected keys "
-                    "(`has_tumor`, `probability`). Adapt the code to your format."
-                )
-            else:
+            if endpoint_type == "clasificacion":
+                # Procesar respuesta de clasificación
+                pred_label = response.get("prediction_label", "")
+                confidence_str = response.get("confidence", "0%")
+                
+                # Extraer valor numérico de confidence (formato "XX.XX%")
+                try:
+                    confidence = float(confidence_str.replace("%", "")) / 100
+                except:
+                    confidence = 0.0
+
+                has_tumor = "Detectado" in pred_label or "(1)" in pred_label
                 diagnosis = "TUMOR DETECTED" if has_tumor else "NO SIGNS OF TUMOR"
                 color = "🔴" if has_tumor else "🟢"
 
                 st.metric(label="Model diagnosis", value=f"{color} {diagnosis}")
-                st.metric(label="Tumor probability", value=f"{prob * 100:.2f} %")
+                st.metric(label="Prediction", value=pred_label)
+                st.metric(label="Confidence", value=confidence_str)
 
                 st.markdown(
                     """
-                    The reported probability should be interpreted as an approximate
-                    **risk score**, not as a definitive diagnosis. Values close to 0.5
+                    The reported confidence should be interpreted as an approximate
+                    **risk score**, not as a definitive diagnosis. Values close to 50%
                     usually indicate uncertainty; in that range, the model should only
                     be used as a prompt for closer human review, never as an automatic
                     decision-maker.
                     """
                 )
+            else:
+                # Procesar respuesta de segmentación
+                mask_b64 = response.get("mask_base64", None)
+                if mask_b64:
+                    st.markdown("### Segmentation mask")
+                    try:
+                        # Extraer base64 si viene con data URI prefix
+                        if "," in mask_b64:
+                            mask_b64 = mask_b64.split(",")[1]
+                        mask_arr = decode_mask_from_b64(mask_b64)
+                        st.image(
+                            mask_arr,
+                            caption="Mask predicted by the model",
+                            use_container_width=True,
+                        )
+                    except Exception as e:
+                        st.info(f"The mask returned by the API could not be decoded: {e}")
+                        logger.error(f"Error decodificando máscara: {e}")
 
-            mask_b64 = response.get("mask_base64", None)
-            if mask_b64:
-                st.markdown("### Segmentation mask (optional)")
-                try:
-                    mask_arr = decode_mask_from_b64(mask_b64)
-                    st.image(
-                        mask_arr,
-                        caption="Mask predicted by the model",
-                        use_column_width=True,
+                    st.caption(
+                        "Segmentation masks allow automatic computation of tumor volume and shape "
+                        "features (radiomics), which can be correlated with prognosis or molecular "
+                        "subtypes in research studies."
                     )
-                except Exception:
-                    st.info("The mask returned by the API could not be decoded.")
-
-                st.caption(
-                    "Segmentation masks allow automatic computation of tumor volume and shape "
-                    "features (radiomics), which can be correlated with prognosis or molecular "
-                    "subtypes in research studies."
-                )
 
 
 def page_media():
