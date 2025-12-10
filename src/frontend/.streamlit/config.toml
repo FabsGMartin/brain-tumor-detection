@@ -1,37 +1,5 @@
 [server]
-enableStaticServing = true  # This lets Streamlit serve your custom fonts
-
-[[theme.fontFaces]]
-family = "SpaceGrotesk"  # Main body font - clean, modern sans-serif
-url = "app/static/SpaceGrotesk-VariableFont_wght.ttf"
-
-[[theme.fontFaces]]
-family = "SpaceGroteskHeader"  # Headers get their own weight
-url = "app/static/SpaceGrotesk-SemiBold.ttf"
-
-[[theme.fontFaces]]
-family = "SpaceMono"  # Code font - monospace for readability
-url = "app/static/SpaceMono-Bold.ttf"
-style = "normal"
-weight = 700
-
-[[theme.fontFaces]]
-family = "SpaceMono"
-url = "app/static/SpaceMono-BoldItalic.ttf"
-style = "italic"
-weight = 700
-
-[[theme.fontFaces]]
-family = "SpaceMono"
-url = "app/static/SpaceMono-Italic.ttf"
-style = "italic"
-weight = 400
-
-[[theme.fontFaces]]
-family = "SpaceMono"
-url = "app/static/SpaceMono-Regular.ttf"
-style = "normal"
-weight = 400
+enableStaticServing = true
 
 [theme]
 primaryColor = "#80b3ff"
@@ -42,11 +10,14 @@ linkColor = "#3d3a2a"
 borderColor = "#d3d2ca"
 showWidgetBorder = true
 baseRadius = "0.6rem"
-font = "SpaceGrotesk"
-headingFont = "SpaceGroteskHeader"
-codeFont = "SpaceMono"
-codeBackgroundColor = "#ecebe4"
 showSidebarBorder = true
+codeBackgroundColor = "#ecebe4"
+
+# Google Fonts configuration
+# Format: "Font Family":URL
+font = "'Space Grotesk':https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+headingFont = "'Space Grotesk':https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+codeFont = "'Space Mono':https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
 
 [theme.sidebar]
 backgroundColor = "#e8e7dd"
