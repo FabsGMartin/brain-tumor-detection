@@ -109,14 +109,13 @@ The project uses a cloud-native architecture:
 
 ### Backend: AWS App Runner
 
-1. **Prepare S3 Buckets:**
+1. **Prepare S3 Bucket:**
 
-   - Create a bucket for models (e.g., `your-models-bucket`)
-   - Create a bucket for data (e.g., `your-data-bucket`)
-   - Upload models to `models/` prefix in the models bucket:
+   - Create a single S3 bucket (e.g., `your-bucket-name`)
+   - Upload models to `models/` prefix:
      - `classifier-resnet-model-final.keras`
      - `segmentation_ResUNet_final.keras`
-   - Upload CSV files to `data/` prefix in the data bucket:
+   - Upload CSV files to `data/` prefix:
      - `route_label.csv`
      - `segmentation_routes_labels.csv`
 
@@ -130,8 +129,7 @@ The project uses a cloud-native architecture:
      - `AWS_ACCESS_KEY_ID`
      - `AWS_SECRET_ACCESS_KEY`
      - `AWS_DEFAULT_REGION`
-     - `S3_MODELS_BUCKET`
-     - `S3_DATA_BUCKET`
+     - `S3_BUCKET` (single bucket name)
      - `CORS_ORIGINS` (your Streamlit Cloud URL)
      - Other variables from `.env`
 
@@ -163,7 +161,7 @@ The project uses a cloud-native architecture:
      AWS_ACCESS_KEY_ID = "your_access_key"
      AWS_SECRET_ACCESS_KEY = "your_secret_key"
      AWS_DEFAULT_REGION = "us-east-1"
-     S3_DATA_BUCKET = "your-data-bucket"
+     S3_BUCKET = "your-bucket-name"
      S3_DATA_PREFIX = "data/"
      API_URL = "https://your-app-runner-url.us-east-1.awsapprunner.com"
      ```
@@ -185,8 +183,7 @@ See `.env` for a complete list. Key variables:
 
 - **S3 Configuration:**
 
-  - `S3_MODELS_BUCKET`: Bucket name for storing models
-  - `S3_DATA_BUCKET`: Bucket name for storing data files and predictions
+  - `S3_BUCKET`: Single bucket name for storing all data (models, data files, and predictions)
   - `S3_MODELS_PREFIX`: Prefix for models (default: `models/`)
   - `S3_DATA_PREFIX`: Prefix for data files (default: `data/`)
   - `S3_PREDICTIONS_PREFIX`: Prefix for predictions storage (default: `predictions/`)

@@ -33,7 +33,7 @@ VIDEO_PATH = BASE_DIR / "video" / "flask_demo.mp4"
 
 # Configuración desde variables de entorno
 API_URL = os.getenv("API_URL", "http://localhost:5000")
-S3_DATA_BUCKET = os.getenv("S3_DATA_BUCKET")
+S3_BUCKET = os.getenv("S3_BUCKET")
 S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/")
 
 # CSV files
@@ -44,34 +44,38 @@ SEGMENTATION_ROUTES_LABELS_CSV_S3 = "segmentation_routes_labels.csv"
 
 # Configurar cliente S3 si está disponible
 s3_client = None
-if S3_DATA_BUCKET:
+if S3_BUCKET:
     try:
         s3_client = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
         )
-        logger.info(f"Cliente S3 configurado para bucket: {S3_DATA_BUCKET}")
+        logger.info(f"Cliente S3 configurado para bucket: {S3_BUCKET}")
     except Exception as e:
         logger.warning(f"No se pudo configurar cliente S3: {e}")
 
 
 def load_csv_from_s3_or_local(csv_filename, s3_key=None):
     """Carga un CSV desde S3 o desde archivo local (fallback)"""
-    if s3_client and S3_DATA_BUCKET:
+    if s3_client and S3_BUCKET:
         try:
             s3_path = s3_key or f"{S3_DATA_PREFIX.rstrip('/')}/{csv_filename}"
             logger.info(f"Intentando cargar {csv_filename} desde S3: {s3_path}")
-            obj = s3_client.get_object(Bucket=S3_DATA_BUCKET, Key=s3_path)
-            df = pd.read_csv(io.BytesIO(obj['Body'].read()))
+            obj = s3_client.get_object(Bucket=S3_BUCKET, Key=s3_path)
+            df = pd.read_csv(io.BytesIO(obj["Body"].read()))
             logger.info(f"CSV {csv_filename} cargado desde S3 exitosamente")
             return df
         except ClientError as e:
-            logger.warning(f"Error cargando {csv_filename} desde S3: {e}, intentando local...")
+            logger.warning(
+                f"Error cargando {csv_filename} desde S3: {e}, intentando local..."
+            )
         except Exception as e:
-            logger.warning(f"Error inesperado cargando {csv_filename} desde S3: {e}, intentando local...")
-    
+            logger.warning(
+                f"Error inesperado cargando {csv_filename} desde S3: {e}, intentando local..."
+            )
+
     # Fallback: cargar desde archivo local
     local_path = DATA_DIR / csv_filename
     if local_path.exists():
@@ -80,6 +84,7 @@ def load_csv_from_s3_or_local(csv_filename, s3_key=None):
     else:
         logger.error(f"CSV {csv_filename} no encontrado ni en S3 ni localmente")
         return pd.DataFrame()  # Retornar DataFrame vacío si no se encuentra
+
 
 # Image files
 KAGGLE_IMAGE = IMAGES_DIR / "kaggle.png"
@@ -133,13 +138,17 @@ st.markdown(
 # -----------DATAFRAME LOADING and ROUTES -------------
 
 df = load_csv_from_s3_or_local("route_label.csv", ROUTE_LABEL_CSV_S3)
-df_tumors = load_csv_from_s3_or_local("segmentation_routes_labels.csv", SEGMENTATION_ROUTES_LABELS_CSV_S3)
+df_tumors = load_csv_from_s3_or_local(
+    "segmentation_routes_labels.csv", SEGMENTATION_ROUTES_LABELS_CSV_S3
+)
 
 
-def call_flask_model(api_url: str, pil_image: Image.Image, endpoint: str = "clasificacion"):
+def call_flask_model(
+    api_url: str, pil_image: Image.Image, endpoint: str = "clasificacion"
+):
     """
     Llama al modelo Flask con una imagen PIL.
-    
+
     Args:
         api_url: URL base de la API
         pil_image: Imagen PIL
@@ -155,7 +164,7 @@ def call_flask_model(api_url: str, pil_image: Image.Image, endpoint: str = "clas
         url = api_url.rstrip("/") + f"/{endpoint}/predict"
 
         files = {"image": ("image.png", img_bytes, "image/png")}
-        
+
         resp = requests.post(url, files=files, timeout=60)
         resp.raise_for_status()
         return resp.json()
@@ -347,7 +356,11 @@ def page_data():
     st.header("📊 Dataset Visualization")
     df_routes = load_csv_from_s3_or_local("route_label.csv", ROUTE_LABEL_CSV_S3)
     if not df_routes.empty:
-        df_routes = df_routes.set_index(df_routes.columns[0]) if len(df_routes.columns) > 0 else df_routes
+        df_routes = (
+            df_routes.set_index(df_routes.columns[0])
+            if len(df_routes.columns) > 0
+            else df_routes
+        )
     tab_plots, tab_table = st.tabs(["📈 Plots", "📄 Table"])
 
     # ===== PLOTS =====
@@ -877,11 +890,9 @@ def page_live_prediction():
 
     st.sidebar.markdown("### ⚙️ Flask API configuration")
     api_url = st.sidebar.text_input("Base API URL", API_URL)
-    
+
     endpoint_type = st.sidebar.selectbox(
-        "Tipo de predicción",
-        ["clasificacion", "segmentacion"],
-        index=0
+        "Tipo de predicción", ["clasificacion", "segmentacion"], index=0
     )
 
     uploaded_file = st.file_uploader(
@@ -904,12 +915,18 @@ def page_live_prediction():
         if st.button("Analyze MRI"):
             with st.spinner("Querying Flask model..."):
                 try:
-                    response = call_flask_model(api_url, pil_img, endpoint=endpoint_type)
+                    response = call_flask_model(
+                        api_url, pil_img, endpoint=endpoint_type
+                    )
                 except requests.exceptions.ConnectionError:
-                    st.error(f"❌ No se pudo conectar a la API en {api_url}. Verifica que el backend esté ejecutándose.")
+                    st.error(
+                        f"❌ No se pudo conectar a la API en {api_url}. Verifica que el backend esté ejecutándose."
+                    )
                     return
                 except requests.exceptions.Timeout:
-                    st.error("⏱️ La solicitud tardó demasiado. Intenta con una imagen más pequeña.")
+                    st.error(
+                        "⏱️ La solicitud tardó demasiado. Intenta con una imagen más pequeña."
+                    )
                     return
                 except Exception as e:
                     st.error(f"❌ Error llamando a la API: {e}")
@@ -919,14 +936,16 @@ def page_live_prediction():
             st.markdown("### Model result")
 
             if not response.get("success", False):
-                st.error(f"La API retornó un error: {response.get('error', 'Error desconocido')}")
+                st.error(
+                    f"La API retornó un error: {response.get('error', 'Error desconocido')}"
+                )
                 return
 
             if endpoint_type == "clasificacion":
                 # Procesar respuesta de clasificación
                 pred_label = response.get("prediction_label", "")
                 confidence_str = response.get("confidence", "0%")
-                
+
                 # Extraer valor numérico de confidence (formato "XX.XX%")
                 try:
                     confidence = float(confidence_str.replace("%", "")) / 100
@@ -966,7 +985,9 @@ def page_live_prediction():
                             use_container_width=True,
                         )
                     except Exception as e:
-                        st.info(f"The mask returned by the API could not be decoded: {e}")
+                        st.info(
+                            f"The mask returned by the API could not be decoded: {e}"
+                        )
                         logger.error(f"Error decodificando máscara: {e}")
 
                     st.caption(

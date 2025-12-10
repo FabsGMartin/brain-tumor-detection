@@ -40,7 +40,7 @@ CORS(app, origins=cors_origins, supports_credentials=True)
 logger.info(f"CORS configurado para origins: {cors_origins}")
 
 # Configuración S3
-S3_DATA_BUCKET = os.getenv("S3_DATA_BUCKET")
+S3_BUCKET = os.getenv("S3_BUCKET")
 S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/")
 S3_PREDICTIONS_PREFIX = os.getenv("S3_PREDICTIONS_PREFIX", "predictions/")
 
@@ -55,7 +55,7 @@ LABELS = ["No detectado (0)", "Detectado(1)"]
 # Configurar cliente S3 si está disponible
 s3_client = None
 storage = None
-if S3_DATA_BUCKET and os.getenv("AWS_ACCESS_KEY_ID"):
+if S3_BUCKET and os.getenv("AWS_ACCESS_KEY_ID"):
     try:
         s3_client = boto3.client(
             "s3",
@@ -63,12 +63,12 @@ if S3_DATA_BUCKET and os.getenv("AWS_ACCESS_KEY_ID"):
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
         )
-        logger.info(f"Cliente S3 configurado para bucket: {S3_DATA_BUCKET}")
+        logger.info(f"Cliente S3 configurado para bucket: {S3_BUCKET}")
 
         # Inicializar almacenamiento de predicciones
         storage = S3PredictionStorage(
             s3_client=s3_client,
-            bucket_name=S3_DATA_BUCKET,
+            bucket_name=S3_BUCKET,
             prefix=S3_PREDICTIONS_PREFIX,
         )
         logger.info(
@@ -273,12 +273,10 @@ def clasificacion_predict_random():
         image_files = []
 
         # Intentar obtener imágenes desde S3
-        if s3_client and S3_DATA_BUCKET:
+        if s3_client and S3_BUCKET:
             try:
                 prefix = f"{S3_DATA_PREFIX.rstrip('/')}/"
-                response = s3_client.list_objects_v2(
-                    Bucket=S3_DATA_BUCKET, Prefix=prefix
-                )
+                response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
                 if "Contents" in response:
                     image_files = [
                         obj["Key"]
@@ -289,9 +287,7 @@ def clasificacion_predict_random():
                     if image_files:
                         selected_key = random.choice(image_files)
                         temp_file = io.BytesIO()
-                        s3_client.download_fileobj(
-                            S3_DATA_BUCKET, selected_key, temp_file
-                        )
+                        s3_client.download_fileobj(S3_BUCKET, selected_key, temp_file)
                         temp_file.seek(0)
                         image_bytes = temp_file.read()
                         filename = os.path.basename(selected_key)
@@ -312,7 +308,7 @@ def clasificacion_predict_random():
             # No hay carpeta local hardcodeada, retornar error
             return jsonify(
                 {
-                    "error": "No hay imágenes disponibles. Configure S3_DATA_BUCKET o proporcione una imagen."
+                    "error": "No hay imágenes disponibles. Configure S3_BUCKET o proporcione una imagen."
                 }
             ), 404
 
@@ -439,12 +435,10 @@ def segmentacion_predict_random():
         filename = None
 
         # Intentar obtener imágenes desde S3
-        if s3_client and S3_DATA_BUCKET:
+        if s3_client and S3_BUCKET:
             try:
                 prefix = f"{S3_DATA_PREFIX.rstrip('/')}/"
-                response = s3_client.list_objects_v2(
-                    Bucket=S3_DATA_BUCKET, Prefix=prefix
-                )
+                response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
                 if "Contents" in response:
                     image_files = [
                         obj["Key"]
@@ -454,9 +448,7 @@ def segmentacion_predict_random():
                     if image_files:
                         selected_key = random.choice(image_files)
                         temp_file = io.BytesIO()
-                        s3_client.download_fileobj(
-                            S3_DATA_BUCKET, selected_key, temp_file
-                        )
+                        s3_client.download_fileobj(S3_BUCKET, selected_key, temp_file)
                         temp_file.seek(0)
                         image_bytes = temp_file.read()
                         filename = os.path.basename(selected_key)
@@ -466,7 +458,7 @@ def segmentacion_predict_random():
         if not image_bytes:
             return jsonify(
                 {
-                    "error": "No hay imágenes disponibles. Configure S3_DATA_BUCKET o proporcione una imagen."
+                    "error": "No hay imágenes disponibles. Configure S3_BUCKET o proporcione una imagen."
                 }
             ), 404
 

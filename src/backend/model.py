@@ -59,10 +59,14 @@ MODELS_DIR = BASE_DIR / "models"
 MODELS_DIR.mkdir(exist_ok=True)  # Crear directorio si no existe
 
 # Configuración desde variables de entorno
-S3_MODELS_BUCKET = os.getenv("S3_MODELS_BUCKET")
+S3_BUCKET = os.getenv("S3_BUCKET")
 S3_MODELS_PREFIX = os.getenv("S3_MODELS_PREFIX", "models/")
-MODEL_CLASSIFICATION_NAME = os.getenv("MODEL_CLASSIFICATION_NAME", "classifier-resnet-model-final.keras")
-MODEL_SEGMENTATION_NAME = os.getenv("MODEL_SEGMENTATION_NAME", "segmentation_ResUNet_final.keras")
+MODEL_CLASSIFICATION_NAME = os.getenv(
+    "MODEL_CLASSIFICATION_NAME", "classifier-resnet-model-final.keras"
+)
+MODEL_SEGMENTATION_NAME = os.getenv(
+    "MODEL_SEGMENTATION_NAME", "segmentation_ResUNet_final.keras"
+)
 
 # Rutas locales (fallback)
 MODEL_CLASIFICACION_LOCAL = MODELS_DIR / MODEL_CLASSIFICATION_NAME
@@ -76,12 +80,12 @@ def download_from_s3(bucket_name, s3_key, local_path):
     """Descarga un archivo desde S3 a una ruta local"""
     try:
         s3_client = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
         )
-        
+
         logger.info(f"Descargando {s3_key} desde S3 bucket {bucket_name}...")
         s3_client.download_file(bucket_name, s3_key, str(local_path))
         logger.info(f"Modelo descargado exitosamente a {local_path}")
@@ -98,24 +102,26 @@ def load_model_from_s3_or_local(model_name, model_key, custom_objects=None):
     """Carga un modelo desde S3 o desde archivo local (fallback)"""
     # Crear ruta temporal para descargar desde S3
     temp_model_path = MODELS_DIR / model_name
-    
+
     # Intentar cargar desde S3 si está configurado
-    if S3_MODELS_BUCKET:
+    if S3_BUCKET:
         s3_key = f"{S3_MODELS_PREFIX.rstrip('/')}/{model_name}"
-        
+
         # Intentar descargar desde S3
-        if download_from_s3(S3_MODELS_BUCKET, s3_key, temp_model_path):
+        if download_from_s3(S3_BUCKET, s3_key, temp_model_path):
             try:
                 logger.info(f"Cargando modelo {model_name} desde S3...")
                 if custom_objects:
-                    model = load_model(str(temp_model_path), custom_objects=custom_objects)
+                    model = load_model(
+                        str(temp_model_path), custom_objects=custom_objects
+                    )
                 else:
                     model = load_model(str(temp_model_path))
                 logger.info(f"¡Modelo {model_name} cargado desde S3!")
                 return model
             except Exception as e:
                 logger.warning(f"Error cargando modelo desde S3, intentando local: {e}")
-    
+
     # Fallback: cargar desde archivo local
     local_path = MODELS_DIR / model_name
     if local_path.exists():
@@ -131,7 +137,9 @@ def load_model_from_s3_or_local(model_name, model_key, custom_objects=None):
             logger.error(f"Error cargando modelo desde archivo local: {e}")
             return None
     else:
-        logger.error(f"Modelo {model_name} no encontrado ni en S3 ni localmente en {local_path}")
+        logger.error(
+            f"Modelo {model_name} no encontrado ni en S3 ni localmente en {local_path}"
+        )
         return None
 
 
@@ -142,14 +150,14 @@ def load_models():
     # Cargar modelo de clasificación
     model_clasificacion = load_model_from_s3_or_local(
         MODEL_CLASSIFICATION_NAME,
-        f"{S3_MODELS_PREFIX.rstrip('/')}/{MODEL_CLASSIFICATION_NAME}"
+        f"{S3_MODELS_PREFIX.rstrip('/')}/{MODEL_CLASSIFICATION_NAME}",
     )
 
     # Cargar modelo de segmentación
     model_segmentacion = load_model_from_s3_or_local(
         MODEL_SEGMENTATION_NAME,
         f"{S3_MODELS_PREFIX.rstrip('/')}/{MODEL_SEGMENTATION_NAME}",
-        custom_objects=CUSTOM_OBJECTS
+        custom_objects=CUSTOM_OBJECTS,
     )
 
     return model_clasificacion, model_segmentacion
