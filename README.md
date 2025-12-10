@@ -13,12 +13,12 @@ We developed a two-stage deep learning pipeline:
 
 ## 📁 Repository Structure
 |
-├─ data/ ← raw and processed MRI routes and mask results
-├─ models/ ← trained model weights and saved artifacts
-├─ notebooks/ ← Jupyter notebooks for data exploration, training, evaluation
-├─ backend-flask/ ← backend API for inference
-├─ frontend-streamlit/ ← Streamlit app for visualization & live prediction
-└─ README.md ← this file
+├─ data/ ← raw and processed MRI routes and mask results  
+├─ models/ ← trained model weights and saved artifacts  
+├─ notebooks/ ← Jupyter notebooks for data exploration, training, evaluation  
+├─ backend-flask/ ← backend API for inference  
+├─ frontend-streamlit/ ← Streamlit app for visualization & live prediction  
+└─ README.md ← this file  
 
 
 ## 🔧 How to Use
