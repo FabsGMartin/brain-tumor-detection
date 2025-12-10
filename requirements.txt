@@ -1,0 +1,29 @@
+# Deep Learning Segmentation Model Dependencies
+tensorflow
+
+# Backend dependencies (Flask)
+flask>=2.0.0
+
+# Frontend dependencies (Streamlit)
+streamlit>=1.28.0
+pandas>=1.5.0
+plotly>=5.0.0
+Pillow>=9.0.0
+
+# Data manipulation and analysis
+numpy>=1.21.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+
+# Image processing
+opencv-python>=4.6.0
+scikit-image>=0.19.0
+tifffile>=2022.0.0
+
+# Interactive visualization (already included above)
+# plotly>=5.0.0
+
+# HTTP requests (for frontend to backend communication)
+requests>=2.28.0
