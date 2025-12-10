@@ -6,12 +6,16 @@ build:
       - echo "Building Docker image..."
 run:
   runtime-version: latest
-  command: gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - src.backend.app:app
+  command: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --log-level debug src.backend.app:app
   network:
-    port: 8000
+    port: 5000
     env: PORT
   env:
     - name: PORT
-      value: "8000"
+      value: "5000"
     - name: HOST
       value: "0.0.0.0"
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    - name: LOG_LEVEL
+      value: "DEBUG"

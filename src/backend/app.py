@@ -4,6 +4,7 @@ import base64
 import random
 import glob
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, request, jsonify
@@ -15,29 +16,59 @@ from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import ClientError
 
-# Importar módulos locales
-from src.backend.model import model_clasificacion, model_segmentacion
-from src.backend.storage import S3PredictionStorage
-
-# Cargar variables de entorno
-load_dotenv()
-
-# Configurar logging
+# Configurar logging TEMPRANO para capturar errores de inicialización
 log_level = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(
     level=getattr(logging, log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
+    force=True,
 )
 logger = logging.getLogger(__name__)
 
+logger.info("=" * 60)
+logger.info("Iniciando aplicación Flask - Brain Tumor Detection")
+logger.info(f"Nivel de logging: {log_level}")
+logger.info("=" * 60)
+
+# Cargar variables de entorno
+try:
+    load_dotenv()
+    logger.debug("Variables de entorno cargadas desde .env")
+except Exception as e:
+    logger.warning(f"No se pudo cargar .env: {e}")
+
+# Importar módulos locales con manejo de errores
+try:
+    logger.debug("Importando módulos locales...")
+    from src.backend.model import model_clasificacion, model_segmentacion
+
+    logger.debug("Modelos importados correctamente")
+    from src.backend.storage import S3PredictionStorage
+
+    logger.debug("Storage importado correctamente")
+except Exception as e:
+    logger.error(f"Error importando módulos locales: {e}", exc_info=True)
+    raise
+
 # Inicializamos la aplicación Flask
-app = Flask(__name__)
-application = app
+try:
+    logger.debug("Creando instancia de Flask...")
+    app = Flask(__name__)
+    application = app
+    logger.debug("Instancia de Flask creada correctamente")
+except Exception as e:
+    logger.error(f"Error creando instancia Flask: {e}", exc_info=True)
+    raise
 
 # Configurar CORS
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",")
-CORS(app, origins=cors_origins, supports_credentials=True)
-logger.info(f"CORS configurado para origins: {cors_origins}")
+try:
+    cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",")
+    CORS(app, origins=cors_origins, supports_credentials=True)
+    logger.info(f"CORS configurado para origins: {cors_origins}")
+except Exception as e:
+    logger.error(f"Error configurando CORS: {e}", exc_info=True)
+    raise
 
 # Configuración S3
 # Ahora (busca uno o el otro):
@@ -92,8 +123,19 @@ if S3_BUCKET:
             f"Almacenamiento de predicciones configurado con prefijo: {S3_PREDICTIONS_PREFIX}"
         )
     except Exception as e:
-        logger.warning(f"No se pudo configurar cliente S3: {e}")
+        logger.warning(f"No se pudo configurar cliente S3: {e}", exc_info=True)
         logger.warning("Las predicciones no se guardarán sin configuración S3")
+else:
+    logger.debug("S3_BUCKET no configurado, omitiendo configuración de S3")
+
+# Log final de inicialización
+logger.info("=" * 60)
+logger.info("Aplicación Flask inicializada correctamente")
+logger.info(
+    f"Modelos cargados - Clasificación: {model_clasificacion is not None}, Segmentación: {model_segmentacion is not None}"
+)
+logger.info(f"S3 configurado: {s3_client is not None}, Storage: {storage is not None}")
+logger.info("=" * 60)
 
 # Preparación de imagen
 
