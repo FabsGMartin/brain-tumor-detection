@@ -110,6 +110,15 @@ def call_flask_model(
         api_url: URL base de la API
         pil_image: Imagen PIL
         endpoint: "clasificacion" o "segmentacion"
+
+    Returns:
+        dict: Respuesta JSON de la API
+
+    Raises:
+        requests.exceptions.HTTPError: Si la respuesta tiene un código de error HTTP
+        requests.exceptions.ConnectionError: Si no se puede conectar al servidor
+        requests.exceptions.Timeout: Si la solicitud excede el tiempo límite
+        requests.exceptions.RequestException: Para otros errores de requests
     """
     try:
         pil_image = pil_image.convert("RGB")
@@ -119,14 +128,26 @@ def call_flask_model(
         img_bytes = buf.getvalue()
 
         url = api_url.rstrip("/") + f"/{endpoint}/predict"
+        logger.debug(f"Llamando a la API: {url}")
 
         files = {"image": ("image.png", img_bytes, "image/png")}
 
         resp = requests.post(url, files=files, timeout=60)
+
+        # Verificar código de estado antes de procesar
+        if resp.status_code >= 400:
+            logger.error(
+                f"Error HTTP {resp.status_code} desde {url}: {resp.text[:200]}"
+            )
+
         resp.raise_for_status()
         return resp.json()
+    except requests.exceptions.HTTPError as e:
+        # Re-lanzar HTTPError con información adicional
+        logger.error(f"Error HTTP {e.response.status_code} llamando a {url}: {e}")
+        raise
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error llamando a la API: {e}")
+        logger.error(f"Error llamando a la API {url}: {e}")
         raise
 
 
@@ -875,19 +896,57 @@ def page_live_prediction():
                     response = call_flask_model(
                         api_url, pil_img, endpoint=endpoint_type
                     )
+                except requests.exceptions.HTTPError as e:
+                    status_code = e.response.status_code if e.response else None
+                    error_msg = ""
+
+                    if status_code == 503:
+                        error_msg = (
+                            f"❌ El servicio del backend no está disponible (503). "
+                            f"Verifica que Railway esté ejecutándose y accesible en {api_url}"
+                        )
+                    elif status_code == 404:
+                        error_msg = (
+                            f"❌ Endpoint no encontrado (404). "
+                            f"Verifica que la URL de la API sea correcta: {api_url}"
+                        )
+                    elif status_code == 500:
+                        error_msg = (
+                            "❌ Error interno del servidor (500). "
+                            "El backend encontró un error al procesar la imagen."
+                        )
+                    elif status_code == 400:
+                        error_msg = (
+                            "❌ Solicitud inválida (400). "
+                            "Verifica que la imagen sea válida y esté en un formato soportado."
+                        )
+                    elif status_code:
+                        error_msg = (
+                            f"❌ Error HTTP {status_code} desde el servidor. "
+                            f"Detalles: {str(e)}"
+                        )
+                    else:
+                        error_msg = f"❌ Error HTTP: {str(e)}"
+
+                    st.error(error_msg)
+                    logger.error(f"Error HTTP en page_live_prediction: {status_code} - {e}")
+                    return
                 except requests.exceptions.ConnectionError:
                     st.error(
-                        f"❌ No se pudo conectar a la API en {api_url}. Verifica que el backend esté ejecutándose."
+                        f"❌ No se pudo conectar a la API en {api_url}. "
+                        f"Verifica que el backend esté ejecutándose y que la URL sea correcta."
                     )
+                    logger.error(f"Error de conexión en page_live_prediction: {api_url}")
                     return
                 except requests.exceptions.Timeout:
                     st.error(
                         "⏱️ La solicitud tardó demasiado. Intenta con una imagen más pequeña."
                     )
+                    logger.error("Timeout en page_live_prediction")
                     return
                 except Exception as e:
-                    st.error(f"❌ Error llamando a la API: {e}")
-                    logger.error(f"Error en page_live_prediction: {e}")
+                    st.error(f"❌ Error inesperado llamando a la API: {e}")
+                    logger.error(f"Error en page_live_prediction: {e}", exc_info=True)
                     return
 
             st.markdown("### Model result")

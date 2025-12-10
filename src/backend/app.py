@@ -61,7 +61,11 @@ except Exception as e:
 
 # Configurar CORS
 try:
-    cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",")
+    # Permitir localhost y Streamlit Cloud por defecto
+    default_origins = "http://localhost:8501,https://braintumor-mri.streamlit.app"
+    cors_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")
+    # Limpiar espacios en blanco
+    cors_origins = [origin.strip() for origin in cors_origins]
     CORS(app, origins=cors_origins, supports_credentials=True)
     logger.info(f"CORS configurado para origins: {cors_origins}")
 except Exception as e:
